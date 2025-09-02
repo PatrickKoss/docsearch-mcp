@@ -17,8 +17,8 @@ export default [
       '*.config.ts',
       'vitest.config.ts',
       '.env*',
-      'data/**'
-    ]
+      'data/**',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -27,7 +27,7 @@ export default [
       parserOptions: {
         project: './tsconfig.json',
         ecmaVersion: 2022,
-        sourceType: 'module'
+        sourceType: 'module',
       },
       globals: {
         console: 'readonly',
@@ -43,53 +43,62 @@ export default [
         fetch: 'readonly',
         Response: 'readonly',
         Request: 'readonly',
-        Headers: 'readonly'
-      }
+        Headers: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
-      'import': importPlugin,
-      'node': nodePlugin,
-      'prettier': prettierPlugin
+      import: importPlugin,
+      node: nodePlugin,
+      prettier: prettierPlugin,
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
       ...prettierConfig.rules,
-      
+
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { 
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
-      }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/consistent-type-imports': ['error', {
-        prefer: 'type-imports',
-        disallowTypeAnnotations: true
-      }],
-      
-      'import/order': ['error', {
-        groups: [
-          'builtin',
-          'external',
-          'internal',
-          ['parent', 'sibling'],
-          'index',
-          'object',
-          'type'
-        ],
-        'newlines-between': 'always',
-        alphabetize: {
-          order: 'asc',
-          caseInsensitive: true
-        }
-      }],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
+          disallowTypeAnnotations: true,
+        },
+      ],
+
+      'import/order': [
+        'error',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling'],
+            'index',
+            'object',
+            'type',
+          ],
+          'newlines-between': 'always',
+          alphabetize: {
+            order: 'asc',
+            caseInsensitive: true,
+          },
+        },
+      ],
       'import/no-duplicates': 'error',
       'import/no-cycle': 'error',
       'import/no-self-import': 'error',
-      
+
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
       'no-debugger': 'error',
       'no-var': 'error',
@@ -100,21 +109,24 @@ export default [
       'no-nested-ternary': 'error',
       'no-unneeded-ternary': 'error',
       'spaced-comment': ['error', 'always'],
-      'eqeqeq': ['error', 'always', { null: 'ignore' }],
-      'curly': ['error', 'all'],
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
+      curly: ['error', 'all'],
       'brace-style': ['error', '1tbs'],
-      
-      'prettier/prettier': ['error', {
-        singleQuote: true,
-        trailingComma: 'all',
-        printWidth: 100,
-        tabWidth: 2,
-        semi: true,
-        bracketSpacing: true,
-        arrowParens: 'always',
-        endOfLine: 'auto'
-      }]
-    }
+
+      'prettier/prettier': [
+        'error',
+        {
+          singleQuote: true,
+          trailingComma: 'all',
+          printWidth: 100,
+          tabWidth: 2,
+          semi: true,
+          bracketSpacing: true,
+          arrowParens: 'always',
+          endOfLine: 'auto',
+        },
+      ],
+    },
   },
   {
     files: ['**/*.test.ts', '**/*.spec.ts', 'test/**/*.ts'],
@@ -128,31 +140,34 @@ export default [
         beforeAll: 'readonly',
         afterAll: 'readonly',
         vi: 'readonly',
-        test: 'readonly'
-      }
+        test: 'readonly',
+      },
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { 
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_|^(describe|it|expect|beforeEach|afterEach|beforeAll|afterAll)',
-        caughtErrorsIgnorePattern: '^_'
-      }]
-    }
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_|^(describe|it|expect|beforeEach|afterEach|beforeAll|afterAll)',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
   },
   {
     files: ['**/*.d.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-empty-object-type': 'off'
-    }
+      '@typescript-eslint/no-empty-object-type': 'off',
+    },
   },
   {
     files: ['**/cli.ts', '**/cli/**/*.ts'],
     rules: {
-      'no-console': 'off'
-    }
-  }
+      'no-console': 'off',
+    },
+  },
 ];

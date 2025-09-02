@@ -20,7 +20,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm/pnpm/yarn
 
 ### Installation
@@ -60,6 +60,7 @@ pnpm build && pnpm start:mcp
 Create a `.env` file from `.env.example` and configure:
 
 ### Embeddings (Required)
+
 ```env
 EMBEDDINGS_PROVIDER=openai
 OPENAI_API_KEY=your_openai_key
@@ -67,6 +68,7 @@ OPENAI_EMBED_MODEL=text-embedding-3-small
 ```
 
 ### File Indexing
+
 ```env
 FILE_ROOTS=.
 FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt}
@@ -74,6 +76,7 @@ FILE_EXCLUDE_GLOBS=**/node_modules/**,**/dist/**
 ```
 
 ### Confluence (Optional)
+
 ```env
 CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
 CONFLUENCE_EMAIL=your@email.com
@@ -101,7 +104,7 @@ Add to your Claude Code MCP settings:
 ### Search Modes
 
 - **Auto** (default): Hybrid keyword + semantic search
-- **Keyword**: Full-text search only  
+- **Keyword**: Full-text search only
 - **Vector**: Semantic search only
 
 ### Make Commands
@@ -111,11 +114,11 @@ Run `make help` to see all available commands:
 ```bash
 # Development Commands
 make install                    # Install dependencies
-make dev                        # Start development server for MCP  
+make dev                        # Start development server for MCP
 make dev-ingest                 # Start development ingestion
 make setup                      # Setup project for development
 
-# Build Commands  
+# Build Commands
 make build                      # Build the project
 make clean                      # Clean all generated files
 
@@ -144,7 +147,7 @@ make clean-data                 # Clean data directory
 ```bash
 # Ingestion
 pnpm dev:ingest files           # Index local files
-pnpm dev:ingest confluence      # Index Confluence pages  
+pnpm dev:ingest confluence      # Index Confluence pages
 pnpm dev:ingest watch           # Watch for file changes
 
 # Server
@@ -153,7 +156,7 @@ pnpm start:mcp                  # Production server
 
 # Quality
 pnpm lint                       # Run linter
-pnpm test                       # Run tests  
+pnpm test                       # Run tests
 pnpm build                      # Build project
 ```
 

@@ -54,8 +54,9 @@ clean: clean-dist ## Clean all generated files
 ##@ Quality Assurance
 
 .PHONY: lint
-lint: ## Run linter
-	@echo -e "$(BLUE)Running linter...$(NC)"
+lint: ## Run linter and formatter
+	@echo -e "$(BLUE)Running linter and formatter...$(NC)"
+	pnpm format:check
 	pnpm lint
 
 .PHONY: lint-fix
