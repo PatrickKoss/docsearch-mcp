@@ -1,8 +1,10 @@
-import Database from 'better-sqlite3';
-import * as sqliteVec from 'sqlite-vec';
-import { CONFIG } from '../shared/config.js';
 import { mkdirSync } from 'fs';
 import { dirname } from 'path';
+
+import Database from 'better-sqlite3';
+import * as sqliteVec from 'sqlite-vec';
+
+import { CONFIG } from '../shared/config.js';
 
 export type DB = Database.Database;
 
@@ -19,12 +21,13 @@ export function openDb(config?: Partial<DbConfig>): DB {
 
   const dir = dirname(dbConfig.path);
   mkdirSync(dir, { recursive: true });
-  
+
   const db = new Database(dbConfig.path);
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
   db.pragma('cache_size = 10000');
-  
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (sqliteVec.load as any)(db);
   ensureSchema(db, dbConfig.embeddingDim);
   return db;
@@ -88,4 +91,3 @@ function ensureSchema(db: DB, embeddingDim: number): void {
     );
   `);
 }
-

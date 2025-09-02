@@ -1,28 +1,13 @@
-import type Database from 'better-sqlite3';
-import type { DB } from './db.js';
-import { DocumentInput, ChunkInput, MetaRow } from '../shared/types.js';
 import { getEmbedder } from './embeddings.js';
 
-interface DocumentHashRow {
-  readonly [key: string]: unknown;
-  readonly id: number;
-  readonly hash: string;
-}
+import type { DB } from './db.js';
+import type { DocumentInput, ChunkInput } from '../shared/types.js';
+import type Database from 'better-sqlite3';
 
 interface ChunkToEmbed {
   readonly [key: string]: unknown;
   readonly id: number;
   readonly content: string;
-}
-
-interface InsertResult {
-  readonly [key: string]: unknown;
-  readonly id: number;
-}
-
-interface RunResult {
-  readonly [key: string]: unknown;
-  readonly lastInsertRowid: number | bigint;
 }
 
 export class Indexer {
@@ -58,8 +43,12 @@ export class Indexer {
       limit 10000
     `);
     this.insertVecStmt = this.db.prepare('insert into vec_chunks (embedding) values (?)');
-    this.insertMapStmt = this.db.prepare('insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)');
-    this.setMetaStmt = this.db.prepare('insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value');
+    this.insertMapStmt = this.db.prepare(
+      'insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)',
+    );
+    this.setMetaStmt = this.db.prepare(
+      'insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value',
+    );
     this.getMetaStmt = this.db.prepare('select value from meta where key = ?');
   }
 
@@ -67,7 +56,7 @@ export class Indexer {
     const row = this.getDocumentStmt.get(doc.uri);
     const isSame = row && row.hash === doc.hash;
     const result = this.upsertDocumentStmt.get(doc);
-    
+
     if (!result) {
       throw new Error(`Failed to upsert document: ${doc.uri}`);
     }
@@ -75,24 +64,32 @@ export class Indexer {
     if (!isSame && row) {
       this.cleanupDocumentChunks(result.id);
     }
-    
+
     return result.id;
   }
 
   private cleanupDocumentChunks(documentId: number): void {
     const transaction = this.db.transaction(() => {
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         delete from vec_chunks where rowid in (
           select m.vec_rowid from chunk_vec_map m 
           join chunks c on c.id = m.chunk_id 
           where c.document_id = ?
         )
-      `).run(documentId);
-      
-      this.db.prepare('delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)').run(documentId);
+      `,
+        )
+        .run(documentId);
+
+      this.db
+        .prepare(
+          'delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)',
+        )
+        .run(documentId);
       this.db.prepare('delete from chunks where document_id = ?').run(documentId);
     });
-    
+
     transaction();
   }
 
@@ -105,11 +102,11 @@ export class Indexer {
           chunk.content,
           chunk.startLine ?? null,
           chunk.endLine ?? null,
-          chunk.tokenCount ?? null
+          chunk.tokenCount ?? null,
         );
       });
     });
-    
+
     transaction();
   }
 
@@ -120,17 +117,21 @@ export class Indexer {
     for (let i = 0; i < toEmbed.length; i += batchSize) {
       const batch = toEmbed.slice(i, i + batchSize);
       const vecs = await embedder.embed(batch.map((b: ChunkToEmbed) => b.content));
-      
+
       const transaction = this.db.transaction(() => {
         batch.forEach((item: ChunkToEmbed, j: number) => {
-          const embedding = JSON.stringify(Array.from(vecs[j]!));
+          const vec = vecs[j];
+          if (!vec) {
+            throw new Error(`Missing embedding vector for chunk ${item.id}`);
+          }
+          const embedding = JSON.stringify(Array.from(vec));
           const result = this.insertVecStmt.run(embedding);
           this.insertMapStmt.run(item.id, result.lastInsertRowid);
         });
       });
-      
+
       transaction();
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
   }
 

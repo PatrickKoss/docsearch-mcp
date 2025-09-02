@@ -1,5 +1,6 @@
-import { CONFIG } from '../shared/config.js';
 import { fetch } from 'undici';
+
+import { CONFIG } from '../shared/config.js';
 
 export interface Embedder {
   readonly dim: number;
@@ -39,18 +40,20 @@ export class OpenAIEmbedder implements Embedder {
   }
 
   async embed(texts: readonly string[]): Promise<readonly Float32Array[]> {
-    if (texts.length === 0) return [];
-    
+    if (texts.length === 0) {
+      return [];
+    }
+
     const response = await fetch(`${this.baseURL}/embeddings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
         model: this.model,
-        input: texts
-      })
+        input: texts,
+      }),
     });
 
     if (!response.ok) {
@@ -58,15 +61,15 @@ export class OpenAIEmbedder implements Embedder {
       throw new Error(`Embeddings API error ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json() as OpenAIEmbeddingResponse;
-    return data.data.map(d => new Float32Array(d.embedding));
+    const data = (await response.json()) as OpenAIEmbeddingResponse;
+    return data.data.map((d) => new Float32Array(d.embedding));
   }
 }
 
 export class TEIEmbedder implements Embedder {
   public readonly dim: number;
   private readonly endpoint: string;
-  
+
   constructor() {
     if (!CONFIG.TEI_ENDPOINT) {
       throw new Error('TEI_ENDPOINT missing');
@@ -74,27 +77,31 @@ export class TEIEmbedder implements Embedder {
     this.endpoint = CONFIG.TEI_ENDPOINT.replace(/\/$/, '');
     this.dim = CONFIG.OPENAI_EMBED_DIM;
   }
-  
+
   async embed(texts: readonly string[]): Promise<readonly Float32Array[]> {
-    if (texts.length === 0) return [];
-    
+    if (texts.length === 0) {
+      return [];
+    }
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: texts })
+      body: JSON.stringify({ input: texts }),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`TEI error ${response.status}: ${errorText}`);
     }
-    
-    const data = await response.json() as TEIEmbeddingResponse;
-    return data.data.map(d => new Float32Array(d.embedding));
+
+    const data = (await response.json()) as TEIEmbeddingResponse;
+    return data.data.map((d) => new Float32Array(d.embedding));
   }
 }
 
 export function getEmbedder(): Embedder {
-  if (CONFIG.EMBEDDINGS_PROVIDER === 'tei') return new TEIEmbedder();
+  if (CONFIG.EMBEDDINGS_PROVIDER === 'tei') {
+    return new TEIEmbedder();
+  }
   return new OpenAIEmbedder();
 }

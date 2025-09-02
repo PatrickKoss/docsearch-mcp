@@ -1,10 +1,13 @@
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { openDb } from "../ingest/db.js";
-import { getEmbedder } from "../ingest/embeddings.js";
-import { hybridSearch, SearchParams, SearchMode } from "../ingest/search.js";
-import { SourceType, SearchResultRow } from "../shared/types.js";
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+
+import { openDb } from '../ingest/db.js';
+import { getEmbedder } from '../ingest/embeddings.js';
+import { hybridSearch } from '../ingest/search.js';
+
+import type { SearchParams, SearchMode } from '../ingest/search.js';
+import type { SourceType, SearchResultRow } from '../shared/types.js';
 
 interface ChunkWithDocumentRow {
   readonly id: number;
@@ -51,12 +54,16 @@ interface SearchToolInput {
   readonly mode?: SearchMode | undefined;
 }
 
-const server = new McpServer({ name: "docsearch-mcp", version: "0.1.0" });
+const server = new McpServer({ name: 'docsearch-mcp', version: '0.1.0' });
 
 server.registerResource(
-  "docchunk",
-  new ResourceTemplate("docchunk://{id}", { list: undefined }),
-  { title: "Document Chunk", description: "Retrieve an indexed chunk by id", mimeType: "text/markdown" },
+  'docchunk',
+  new ResourceTemplate('docchunk://{id}', { list: undefined }),
+  {
+    title: 'Document Chunk',
+    description: 'Retrieve an indexed chunk by id',
+    mimeType: 'text/markdown',
+  },
   async (_uri, { id }) => {
     const db = openDb();
     const stmt = db.prepare(`
@@ -65,33 +72,33 @@ server.registerResource(
       where c.id = ?
     `);
     const row = stmt.get(Number(id)) as ChunkWithDocumentRow | undefined;
-    
+
     if (!row) {
-      return { contents: [{ uri: `docchunk://${id}`, text: "Not found" }] };
+      return { contents: [{ uri: `docchunk://${id}`, text: 'Not found' }] };
     }
-    
+
     const title = row.title || row.path || row.uri;
     const location = row.path ? `• ${row.path}` : '';
     const lines = row.start_line ? `(lines ${row.start_line}-${row.end_line})` : '';
     const header = `# ${title}\n\n> ${row.source} • ${row.repo || ''} ${location} ${lines}\n\n`;
-    
+
     return { contents: [{ uri: `docchunk://${id}`, text: header + row.content }] };
-  }
+  },
 );
 
 server.registerTool(
-  "doc-search",
+  'doc-search',
   {
-    title: "Search indexed docs",
-    description: "Hybrid semantic+keyword search across local files and Confluence",
+    title: 'Search indexed docs',
+    description: 'Hybrid semantic+keyword search across local files and Confluence',
     inputSchema: {
       query: z.string(),
       topK: z.number().int().min(1).max(50).optional(),
-      source: z.enum(['file','confluence']).optional(),
+      source: z.enum(['file', 'confluence']).optional(),
       repo: z.string().optional(),
       pathPrefix: z.string().optional(),
-      mode: z.enum(['auto','vector','keyword']).optional()
-    }
+      mode: z.enum(['auto', 'vector', 'keyword']).optional(),
+    },
   },
   async (input: SearchToolInput) => {
     const db = openDb();
@@ -108,7 +115,11 @@ server.registerTool(
 
     if (input.mode !== 'keyword') {
       const embeddings = await embedder.embed([input.query]);
-      const embedding = JSON.stringify(Array.from(embeddings[0]!));
+      const firstEmbedding = embeddings[0];
+      if (!firstEmbedding) {
+        throw new Error('Failed to generate embedding for query');
+      }
+      const embedding = JSON.stringify(Array.from(firstEmbedding));
       const vecResults = vec.all({ embedding, ...binds });
       for (const r of vecResults) {
         results.push({ ...r, reason: 'vector' });
@@ -128,32 +139,34 @@ server.registerTool(
     const items = Array.from(byId.values()).slice(0, input.topK ?? 8);
 
     const content: ContentItem[] = [
-      { type: "text", text: `Found ${items.length} results for "${input.query}"` }
+      { type: 'text', text: `Found ${items.length} results for "${input.query}"` },
     ];
-    
+
     for (const r of items) {
       const name = r.title || r.path || r.uri;
       const repoInfo = r.repo ? ` • ${r.repo}` : '';
       const pathInfo = r.path ? ` • ${r.path}` : '';
       const description = `${r.source}${repoInfo}${pathInfo}`;
-      
+
       content.push({
-        type: "resource_link",
+        type: 'resource_link',
         uri: `docchunk://${r.chunk_id}`,
         name,
-        description
+        description,
       } satisfies ResourceLinkContentItem);
-      
-      const snippet = String(r.snippet || '').replace(/\s+/g, ' ').slice(0, 240);
-      const ellipsis = snippet.length >= 240 ? "…" : "";
-      content.push({ 
-        type: "text", 
-        text: `— ${snippet}${ellipsis}` 
+
+      const snippet = String(r.snippet || '')
+        .replace(/\s+/g, ' ')
+        .slice(0, 240);
+      const ellipsis = snippet.length >= 240 ? '…' : '';
+      content.push({
+        type: 'text',
+        text: `— ${snippet}${ellipsis}`,
       } satisfies TextContentItem);
     }
 
     return { content };
-  }
+  },
 );
 
 const transport = new StdioServerTransport();

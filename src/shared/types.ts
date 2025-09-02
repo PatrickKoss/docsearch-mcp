@@ -4,7 +4,7 @@ export interface DocumentRow {
   readonly [key: string]: unknown;
   readonly id?: number;
   readonly source: SourceType;
-  readonly uri: string;           // file://... or confluence://{id}
+  readonly uri: string; // file://... or confluence://{id}
   readonly repo?: string | null;
   readonly path?: string | null;
   readonly title?: string | null;
@@ -66,7 +66,7 @@ export interface ChunkInput {
   readonly tokenCount?: number;
 }
 
-export interface DocumentInput extends Omit<DocumentRow, 'id'> {}
+export type DocumentInput = Omit<DocumentRow, 'id'>;
 
 export interface ChunkWithMetadata extends ChunkRow {
   readonly document: DocumentRow;

@@ -1,6 +1,6 @@
-import type Database from 'better-sqlite3';
 import type { DB } from './db.js';
-import { SourceType, SearchResultRow } from '../shared/types.js';
+import type { SourceType } from '../shared/types.js';
+import type Database from 'better-sqlite3';
 
 export type SearchMode = 'auto' | 'vector' | 'keyword';
 
@@ -11,16 +11,6 @@ export interface SearchParams {
   readonly repo?: string;
   readonly pathPrefix?: string;
   readonly mode?: SearchMode;
-}
-
-interface SearchBinds {
-  readonly [key: string]: unknown;
-  readonly query?: string;
-  readonly k: number;
-  readonly source?: SourceType;
-  readonly repo?: string;
-  readonly pathPrefix?: string;
-  readonly embedding?: string;
 }
 
 interface HybridSearchResult {
@@ -35,21 +25,21 @@ export function hybridSearch(db: DB, params: SearchParams): HybridSearchResult {
 
   const filters: string[] = [];
   const binds: Record<string, unknown> = {};
-  
-  if (params.source) { 
-    filters.push('d.source = @source'); 
-    binds.source = params.source; 
+
+  if (params.source) {
+    filters.push('d.source = @source');
+    binds.source = params.source;
   }
-  if (params.repo) { 
-    filters.push('d.repo = @repo'); 
-    binds.repo = params.repo; 
+  if (params.repo) {
+    filters.push('d.repo = @repo');
+    binds.repo = params.repo;
   }
-  if (params.pathPrefix) { 
-    filters.push('d.path like @pathPrefix'); 
-    binds.pathPrefix = params.pathPrefix + '%'; 
+  if (params.pathPrefix) {
+    filters.push('d.path like @pathPrefix');
+    binds.pathPrefix = `${params.pathPrefix}%`;
   }
-  
-  const filterSql = filters.length ? ('where ' + filters.join(' and ')) : '';
+
+  const filterSql = filters.length ? `where ${filters.join(' and ')}` : '';
 
   const kw = db.prepare(`
     with kw as (
@@ -84,10 +74,10 @@ export function hybridSearch(db: DB, params: SearchParams): HybridSearchResult {
     limit $k
   `);
 
-  return { 
-    kw, 
-    vec, 
-    binds: { ...binds, k: topK }, 
-    topK 
+  return {
+    kw,
+    vec,
+    binds: { ...binds, k: topK },
+    topK,
   };
 }

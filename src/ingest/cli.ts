@@ -1,10 +1,12 @@
 #!/usr/bin/env -S node --enable-source-maps
-import { openDb } from './db.js';
-import { ingestFiles } from './sources/files.js';
-import { ingestConfluence } from './sources/confluence.js';
-import { Indexer } from './indexer.js';
-import chokidar from 'chokidar';
 import fs from 'node:fs';
+
+import chokidar from 'chokidar';
+
+import { openDb } from './db.js';
+import { Indexer } from './indexer.js';
+import { ingestConfluence } from './sources/confluence.js';
+import { ingestFiles } from './sources/files.js';
 
 async function main() {
   const cmd = process.argv[2] || 'help';
@@ -21,10 +23,15 @@ async function main() {
     console.log('Confluence ingested.');
   } else if (cmd === 'watch') {
     console.log('Watching for changes...');
-    const watcher = chokidar.watch(process.cwd(), { ignored: /(^|[\/])\.(git|hg)|node_modules|dist|build|target/, ignoreInitial: true });
+    const watcher = chokidar.watch(process.cwd(), {
+      ignored: /(^|[/])\.(git|hg)|node_modules|dist|build|target/,
+      ignoreInitial: true,
+    });
     watcher.on('all', async (event, path) => {
       try {
-        if (!fs.existsSync(path) || fs.statSync(path).isDirectory()) return;
+        if (!fs.existsSync(path) || fs.statSync(path).isDirectory()) {
+          return;
+        }
         await ingestFiles(db); // simple rescan
         await indexer.embedNewChunks();
         console.log('Re-indexed after change:', event, path);
@@ -41,4 +48,7 @@ async function main() {
   }
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

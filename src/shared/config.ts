@@ -23,8 +23,11 @@ interface AppConfig {
 }
 
 function splitCsv(v: string | undefined, def: string): readonly string[] {
-  const raw = (v && v.length) ? v : def;
-  return raw.split(',').map(s => s.trim()).filter(Boolean);
+  const raw = v && v.length ? v : def;
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function validateEmbeddingsProvider(provider: string): EmbeddingsProvider {
@@ -48,8 +51,14 @@ export const CONFIG: AppConfig = {
   CONFLUENCE_SPACES: splitCsv(process.env.CONFLUENCE_SPACES, ''),
 
   FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
-  FILE_INCLUDE_GLOBS: splitCsv(process.env.FILE_INCLUDE_GLOBS, '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json}'),
-  FILE_EXCLUDE_GLOBS: splitCsv(process.env.FILE_EXCLUDE_GLOBS, '**/{.git,node_modules,dist,build,target}/**'),
+  FILE_INCLUDE_GLOBS: splitCsv(
+    process.env.FILE_INCLUDE_GLOBS,
+    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json}',
+  ),
+  FILE_EXCLUDE_GLOBS: splitCsv(
+    process.env.FILE_EXCLUDE_GLOBS,
+    '**/{.git,node_modules,dist,build,target}/**',
+  ),
 
   DB_PATH: process.env.DB_PATH || './data/index.db',
 } as const;
