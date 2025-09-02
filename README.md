@@ -30,10 +30,11 @@ A local-first document search and indexing system that provides hybrid semantic 
 git clone https://github.com/yourusername/docsearch-mcp.git
 cd docsearch-mcp
 
-# Install dependencies
-pnpm install
+# Quick setup with Make
+make setup
 
-# Set up environment
+# Or manual setup
+pnpm install
 cp .env.example .env
 # Edit .env with your API keys and configuration
 ```
@@ -41,18 +42,17 @@ cp .env.example .env
 ### Basic Usage
 
 ```bash
-# Index your local files
+# Using Make (recommended)
+make ingest-files              # Index your local files
+make ingest-confluence         # Index Confluence pages (optional)
+make dev                       # Start development MCP server
+make start                     # Build and start production server
+
+# Or using npm scripts directly
 pnpm dev:ingest files
-
-# Index Confluence pages (optional)
 pnpm dev:ingest confluence
-
-# Start the MCP server
 pnpm dev:mcp
-
-# Or build and run in production
-pnpm build
-pnpm start:mcp
+pnpm build && pnpm start:mcp
 ```
 
 ## ⚙️ Configuration
@@ -104,7 +104,42 @@ Add to your Claude Code MCP settings:
 - **Keyword**: Full-text search only  
 - **Vector**: Semantic search only
 
-### CLI Commands
+### Make Commands
+
+Run `make help` to see all available commands:
+
+```bash
+# Development Commands
+make install                    # Install dependencies
+make dev                        # Start development server for MCP  
+make dev-ingest                 # Start development ingestion
+make setup                      # Setup project for development
+
+# Build Commands  
+make build                      # Build the project
+make clean                      # Clean all generated files
+
+# Quality Assurance
+make lint                       # Run linter
+make lint-fix                   # Run linter with auto-fix
+make format                     # Format code with Prettier
+make typecheck                  # Run TypeScript type checking
+make test                       # Run tests
+make test-run                   # Run tests once
+make check-all                  # Run all quality checks
+
+# Production Commands
+make start                      # Start production MCP server
+make start-ingest               # Start production ingestion
+
+# Data Management
+make ingest-files               # Ingest local files
+make ingest-confluence          # Ingest Confluence pages
+make watch                      # Watch for file changes and re-index
+make clean-data                 # Clean data directory
+```
+
+### NPM Scripts (Alternative)
 
 ```bash
 # Ingestion
@@ -115,6 +150,11 @@ pnpm dev:ingest watch           # Watch for file changes
 # Server
 pnpm dev:mcp                    # Development server
 pnpm start:mcp                  # Production server
+
+# Quality
+pnpm lint                       # Run linter
+pnpm test                       # Run tests  
+pnpm build                      # Build project
 ```
 
 ## 🏗️ Architecture
@@ -154,11 +194,22 @@ pnpm start:mcp                  # Production server
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Development Workflow
+
 1. Fork the project
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+3. Set up the development environment:
+   ```bash
+   make setup
+   ```
+4. Make your changes and ensure quality:
+   ```bash
+   make check-all          # Run linter, typecheck, and tests
+   make format             # Format your code
+   ```
+5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+6. Push to the branch (`git push origin feature/AmazingFeature`)
+7. Open a Pull Request
 
 ## 📝 License
 
