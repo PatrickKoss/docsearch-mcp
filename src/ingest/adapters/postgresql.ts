@@ -108,8 +108,8 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async upsertDocument(doc: DocumentInput): Promise<number> {
-    const existing = await this.getDocument(doc.uri);
-    const isSame = existing && existing.hash === doc.hash;
+    const existing = await this.getDocument(doc.uri as string);
+    const isSame = existing && existing.hash === (doc.hash as string);
 
     const result = await this.client.query(
       `

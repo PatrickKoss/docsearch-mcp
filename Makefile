@@ -54,10 +54,11 @@ clean: clean-dist ## Clean all generated files
 ##@ Quality Assurance
 
 .PHONY: lint
-lint: ## Run linter and formatter
-	@echo -e "$(BLUE)Running linter and formatter...$(NC)"
+lint: ## Run linter, formatter, and typecheck (source only)
+	@echo -e "$(BLUE)Running linter, formatter, and typecheck...$(NC)"
 	pnpm format:check
 	pnpm lint
+	pnpm typecheck:src
 
 .PHONY: lint-fix
 lint-fix: ## Run linter with auto-fix
@@ -75,9 +76,14 @@ format-check: ## Check code formatting
 	pnpm format:check
 
 .PHONY: typecheck
-typecheck: ## Run TypeScript type checking
+typecheck: ## Run TypeScript type checking (all files)
 	@echo -e "$(BLUE)Running TypeScript type checking...$(NC)"
 	pnpm typecheck
+
+.PHONY: typecheck-src
+typecheck-src: ## Run TypeScript type checking (source only)
+	@echo -e "$(BLUE)Running TypeScript type checking on source files...$(NC)"
+	pnpm typecheck:src
 
 .PHONY: test
 test: ## Run tests
@@ -111,7 +117,7 @@ test-integration: ## Run integration tests (requires Docker)
 	pnpm test:integration
 
 .PHONY: check-all
-check-all: lint typecheck test-unit ## Run all quality checks
+check-all: lint typecheck-src test-unit ## Run all quality checks
 	@echo -e "$(GREEN)All quality checks passed!$(NC)"
 
 ##@ Production Commands

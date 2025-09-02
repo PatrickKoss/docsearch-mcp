@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { chunkCode, chunkDoc } from '../src/ingest/chunker.ts';
+import { chunkCode, chunkDoc } from '../src/ingest/chunker.js';
 
 describe('Chunker', () => {
   describe('chunkCode', () => {

@@ -26,6 +26,10 @@ export function chunkCode(text: string): readonly Chunk[] {
 
     for (let i = start; i < lines.length; i++) {
       const line = lines[i];
+      if (line === undefined) {
+        continue; // Should never happen, but satisfies TypeScript
+      }
+
       const candidate = hasContent ? `${acc}\n${line}` : line;
 
       // Check if adding this line would exceed the limit

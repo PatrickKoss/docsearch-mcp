@@ -170,8 +170,8 @@ export class SqliteAdapter implements DatabaseAdapter {
   }
 
   async upsertDocument(doc: DocumentInput): Promise<number> {
-    const row = await this.getDocument(doc.uri);
-    const isSame = row && row.hash === doc.hash;
+    const row = await this.getDocument(doc.uri as string);
+    const isSame = row && row.hash === (doc.hash as string);
 
     // Map extraJson to extra_json for SQLite parameter binding
     const docParams = {

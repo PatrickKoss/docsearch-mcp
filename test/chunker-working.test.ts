@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { chunkCode, chunkDoc } from '../src/ingest/chunker.ts';
+import { chunkCode, chunkDoc } from '../src/ingest/chunker.js';
 
 describe('Chunker (Working)', () => {
   describe('chunkCode', () => {
@@ -12,10 +12,10 @@ describe('Chunker (Working)', () => {
     it('should handle single line', () => {
       const result = chunkCode('const x = 1;');
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe('const x = 1;');
-      expect(result[0].startLine).toBe(1);
-      expect(result[0].endLine).toBe(1);
-      expect(result[0].tokenCount).toBeGreaterThan(0);
+      expect(result[0]?.content).toBe('const x = 1;');
+      expect(result[0]?.startLine).toBe(1);
+      expect(result[0]?.endLine).toBe(1);
+      expect(result[0]?.tokenCount).toBeGreaterThan(0);
     });
 
     it('should chunk small code', () => {

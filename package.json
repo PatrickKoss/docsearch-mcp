@@ -19,7 +19,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write '**/*.{ts,tsx,js,jsx,json,md}'",
     "format:check": "prettier --check '**/*.{ts,tsx,js,jsx,json,md}'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:src": "tsc --noEmit --project tsconfig.src.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",

@@ -102,10 +102,11 @@ CONFLUENCE_SPACES=SPACE1,SPACE2
 The system automatically detects and processes different file types:
 
 - **Code files**: `.ts`, `.js`, `.py`, `.go`, `.rs`, `.java`, `.cpp`, `.c`, `.rb`, `.php`, `.kt`, `.swift`
-- **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`  
+- **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`
 - **PDFs**: `.pdf` files are automatically parsed with text extraction and metadata preservation
 
 PDF files are processed with:
+
 - Text extraction using advanced parsing
 - Metadata preservation (page count, document info)
 - Smart text normalization and chunking
