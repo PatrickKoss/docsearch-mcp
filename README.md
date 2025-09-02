@@ -4,16 +4,17 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.17-purple.svg)](https://modelcontextprotocol.io/)
 
-A local-first document search and indexing system that provides hybrid semantic + keyword search across local files and Confluence pages through the Model Context Protocol (MCP). Perfect for AI assistants like Claude Code/Desktop to access your documentation and codebase.
+A local-first document search and indexing system that provides hybrid semantic + keyword search across local files (including PDFs) and Confluence pages through the Model Context Protocol (MCP). Perfect for AI assistants like Claude Code/Desktop to access your documentation, codebase, and research materials.
 
 ## ✨ Features
 
 - **🔍 Hybrid Search**: Combines full-text search (FTS) with vector similarity for optimal results
-- **📁 Multi-Source**: Index both local files and Confluence spaces
+- **📁 Multi-Source**: Index local files (code, docs, PDFs) and Confluence spaces
+- **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
 - **🗄️ Database Flexibility**: Support for SQLite (local-first) and PostgreSQL (scalable)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
 - **⚡ Real-time Updates**: File watching with automatic re-indexing
-- **🎯 Smart Chunking**: Intelligent text chunking for code and documentation
+- **🎯 Smart Chunking**: Intelligent text chunking for code, documentation, and PDFs
 - **🔒 Secure**: API keys and sensitive data stay on your machine
 
 ## 🚀 Quick Start
@@ -71,7 +72,7 @@ OPENAI_EMBED_MODEL=text-embedding-3-small
 
 ```env
 FILE_ROOTS=.
-FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt}
+FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt,pdf}
 FILE_EXCLUDE_GLOBS=**/node_modules/**,**/dist/**
 ```
 
@@ -95,6 +96,20 @@ CONFLUENCE_EMAIL=your@email.com
 CONFLUENCE_API_TOKEN=your_confluence_token
 CONFLUENCE_SPACES=SPACE1,SPACE2
 ```
+
+### Supported File Types
+
+The system automatically detects and processes different file types:
+
+- **Code files**: `.ts`, `.js`, `.py`, `.go`, `.rs`, `.java`, `.cpp`, `.c`, `.rb`, `.php`, `.kt`, `.swift`
+- **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`  
+- **PDFs**: `.pdf` files are automatically parsed with text extraction and metadata preservation
+
+PDF files are processed with:
+- Text extraction using advanced parsing
+- Metadata preservation (page count, document info)
+- Smart text normalization and chunking
+- Error handling for corrupted or encrypted files
 
 ## 📖 Usage
 

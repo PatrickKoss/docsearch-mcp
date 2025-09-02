@@ -63,7 +63,7 @@ export const CONFIG: AppConfig = {
   FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
   FILE_INCLUDE_GLOBS: splitCsv(
     process.env.FILE_INCLUDE_GLOBS,
-    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json}',
+    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}',
   ),
   FILE_EXCLUDE_GLOBS: splitCsv(
     process.env.FILE_EXCLUDE_GLOBS,

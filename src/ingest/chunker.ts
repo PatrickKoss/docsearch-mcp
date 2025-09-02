@@ -103,6 +103,22 @@ export function chunkDoc(text: string): readonly Chunk[] {
   return chunks;
 }
 
+export function chunkPdf(text: string): readonly Chunk[] {
+  if (!text.trim()) {
+    return [];
+  }
+
+  // Clean up PDF text: normalize whitespace, remove excessive line breaks
+  const cleanedText = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+  return chunkDoc(cleanedText);
+}
+
 function approxTokens(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.round(words * 1.05 + 5);

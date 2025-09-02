@@ -146,7 +146,8 @@ describe('Configuration', () => {
         'txt',
         'yaml',
         'yml',
-        'json}',
+        'json',
+        'pdf}',
       ]); // Default split on commas
       expect(CONFIG.FILE_EXCLUDE_GLOBS).toEqual([
         '**/{.git',
