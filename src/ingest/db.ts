@@ -60,8 +60,12 @@ function ensureSchema(db: Database.Database) {
     end;
 
     create virtual table if not exists vec_chunks using vec0(
-      chunk_id integer primary key,
       embedding float[${CONFIG.OPENAI_EMBED_DIM}]
+    );
+
+    create table if not exists chunk_vec_map(
+      chunk_id integer primary key references chunks(id) on delete cascade,
+      vec_rowid integer not null
     );
 
     create table if not exists meta(

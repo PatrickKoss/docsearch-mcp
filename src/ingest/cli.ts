@@ -14,7 +14,7 @@ async function main() {
   if (cmd === 'files') {
     await ingestFiles(db);
     await indexer.embedNewChunks();
-    console.log('Files ingested (without embeddings).');
+    console.log('Files ingested.');
   } else if (cmd === 'confluence') {
     await ingestConfluence(db);
     await indexer.embedNewChunks();

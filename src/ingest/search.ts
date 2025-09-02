@@ -38,14 +38,15 @@ export function hybridSearch(db: Database.Database, p: SearchParams) {
 
   const vec = db.prepare(`
     with vec as (
-      select chunk_id, distance
+      select rowid, distance
       from vec_chunks
       where embedding match $embedding and k = $k
     )
-    select vec.chunk_id, vec.distance as score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
+    select m.chunk_id as chunk_id, vec.distance as score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
            c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
     from vec
-    join chunks c on c.id = vec.chunk_id
+    join chunk_vec_map m on m.vec_rowid = vec.rowid
+    join chunks c on c.id = m.chunk_id
     join documents d on d.id = c.document_id
     ${filterSql}
     limit $k

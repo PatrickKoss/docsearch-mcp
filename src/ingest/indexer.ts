@@ -20,7 +20,15 @@ export class Indexer {
     `);
     const res = up.get(doc) as { id: number };
     if (!isSame && row) {
-      this.db.prepare('delete from vec_chunks where chunk_id in (select id from chunks where document_id=?)').run(res.id);
+      // Delete vectors using mapping table
+      this.db.prepare(`
+        delete from vec_chunks where rowid in (
+          select m.vec_rowid from chunk_vec_map m 
+          join chunks c on c.id = m.chunk_id 
+          where c.document_id = ?
+        )
+      `).run(res.id);
+      this.db.prepare('delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)').run(res.id);
       this.db.prepare('delete from chunks where document_id = ?').run(res.id);
     }
     return res.id;
@@ -45,19 +53,22 @@ export class Indexer {
     const toEmbed = this.db.prepare(`
       select c.id, c.content
       from chunks c
-      left join vec_chunks v on v.chunk_id = c.id
-      where v.chunk_id is null
+      left join chunk_vec_map m on m.chunk_id = c.id
+      where m.chunk_id is null
       limit 10000
     `).all() as { id: number, content: string }[];
 
     for (let i = 0; i < toEmbed.length; i += batchSize) {
       const batch = toEmbed.slice(i, i + batchSize);
       const vecs = await embedder.embed(batch.map(b => b.content));
-      const ins = this.db.prepare('insert into vec_chunks (chunk_id, embedding) values (?, ?)');
+      const ins = this.db.prepare('insert into vec_chunks (embedding) values (?)');
       const t = this.db.transaction(() => {
         for (let j = 0; j < batch.length; j++) {
           const embedding = JSON.stringify(Array.from(vecs[j]));
-          ins.run(batch[j].id, embedding);
+          const result = ins.run(embedding);
+          // Store mapping between chunk_id and vec rowid
+          const mapIns = this.db.prepare('insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)');
+          mapIns.run(batch[j].id, result.lastInsertRowid);
         }
       });
       t();

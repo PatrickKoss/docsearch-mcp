@@ -53,7 +53,8 @@ server.registerTool(
 
     if (input.mode !== 'keyword') {
       const q = await embedder.embed([input.query]);
-      const rvec = vec.all({ embedding: q[0], k: topK, ...binds }) as any[];
+      const embedding = JSON.stringify(Array.from(q[0]));
+      const rvec = vec.all({ embedding, k: topK, ...binds }) as any[];
       for (const r of rvec) results.push({ ...r, reason: 'vector' });
     }
 
