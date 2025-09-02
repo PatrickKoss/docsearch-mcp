@@ -4,19 +4,33 @@ import { CONFIG } from '../shared/config.js';
 import { mkdirSync } from 'fs';
 import { dirname } from 'path';
 
-export function openDb() {
-  // Create directory if it doesn't exist
-  const dir = dirname(CONFIG.DB_PATH);
+export type DB = Database.Database;
+
+export interface DbConfig {
+  readonly path: string;
+  readonly embeddingDim: number;
+}
+
+export function openDb(config?: Partial<DbConfig>): DB {
+  const dbConfig: DbConfig = {
+    path: config?.path ?? CONFIG.DB_PATH,
+    embeddingDim: config?.embeddingDim ?? CONFIG.OPENAI_EMBED_DIM,
+  };
+
+  const dir = dirname(dbConfig.path);
   mkdirSync(dir, { recursive: true });
   
-  const db = new Database(CONFIG.DB_PATH);
+  const db = new Database(dbConfig.path);
   db.pragma('journal_mode = WAL');
-  sqliteVec.load(db);
-  ensureSchema(db);
+  db.pragma('synchronous = NORMAL');
+  db.pragma('cache_size = 10000');
+  
+  (sqliteVec.load as any)(db);
+  ensureSchema(db, dbConfig.embeddingDim);
   return db;
 }
 
-function ensureSchema(db: Database.Database) {
+function ensureSchema(db: DB, embeddingDim: number): void {
   db.exec(`
     create table if not exists documents(
       id integer primary key,
@@ -60,7 +74,7 @@ function ensureSchema(db: Database.Database) {
     end;
 
     create virtual table if not exists vec_chunks using vec0(
-      embedding float[${CONFIG.OPENAI_EMBED_DIM}]
+      embedding float[${embeddingDim}]
     );
 
     create table if not exists chunk_vec_map(
@@ -75,4 +89,3 @@ function ensureSchema(db: Database.Database) {
   `);
 }
 
-export type DB = ReturnType<typeof openDb>;

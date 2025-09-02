@@ -1,15 +1,43 @@
 import type Database from 'better-sqlite3';
-import { DocumentRow } from '../shared/types.js';
+import type { DB } from './db.js';
+import { DocumentInput, ChunkInput, MetaRow } from '../shared/types.js';
 import { getEmbedder } from './embeddings.js';
 
-export class Indexer {
-  constructor(private db: Database.Database) {}
+interface DocumentHashRow {
+  readonly [key: string]: unknown;
+  readonly id: number;
+  readonly hash: string;
+}
 
-  upsertDocument(doc: Omit<DocumentRow, 'id'>): number {
-    const get = this.db.prepare('select id, hash from documents where uri = ?');
-    const row = get.get(doc.uri) as { id: number, hash: string } | undefined;
-    const isSame = row && row.hash === doc.hash;
-    const up = this.db.prepare(`
+interface ChunkToEmbed {
+  readonly [key: string]: unknown;
+  readonly id: number;
+  readonly content: string;
+}
+
+interface InsertResult {
+  readonly [key: string]: unknown;
+  readonly id: number;
+}
+
+interface RunResult {
+  readonly [key: string]: unknown;
+  readonly lastInsertRowid: number | bigint;
+}
+
+export class Indexer {
+  private readonly getDocumentStmt: Database.Statement;
+  private readonly upsertDocumentStmt: Database.Statement;
+  private readonly insertChunkStmt: Database.Statement;
+  private readonly getChunksToEmbedStmt: Database.Statement;
+  private readonly insertVecStmt: Database.Statement;
+  private readonly insertMapStmt: Database.Statement;
+  private readonly setMetaStmt: Database.Statement;
+  private readonly getMetaStmt: Database.Statement;
+
+  constructor(private readonly db: DB) {
+    this.getDocumentStmt = this.db.prepare('select id, hash from documents where uri = ?');
+    this.upsertDocumentStmt = this.db.prepare(`
       insert into documents (source, uri, repo, path, title, lang, hash, mtime, version, extra_json)
       values (@source, @uri, @repo, @path, @title, @lang, @hash, @mtime, @version, @extra_json)
       on conflict(uri) do update set
@@ -18,69 +46,100 @@ export class Indexer {
         mtime=excluded.mtime, version=excluded.version, extra_json=excluded.extra_json
       returning id
     `);
-    const res = up.get(doc) as { id: number };
+    this.insertChunkStmt = this.db.prepare(`
+      insert into chunks (document_id, chunk_index, content, start_line, end_line, token_count)
+      values (?, ?, ?, ?, ?, ?)
+    `);
+    this.getChunksToEmbedStmt = this.db.prepare(`
+      select c.id, c.content
+      from chunks c
+      left join chunk_vec_map m on m.chunk_id = c.id
+      where m.chunk_id is null
+      limit 10000
+    `);
+    this.insertVecStmt = this.db.prepare('insert into vec_chunks (embedding) values (?)');
+    this.insertMapStmt = this.db.prepare('insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)');
+    this.setMetaStmt = this.db.prepare('insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value');
+    this.getMetaStmt = this.db.prepare('select value from meta where key = ?');
+  }
+
+  upsertDocument(doc: DocumentInput): number {
+    const row = this.getDocumentStmt.get(doc.uri);
+    const isSame = row && row.hash === doc.hash;
+    const result = this.upsertDocumentStmt.get(doc);
+    
+    if (!result) {
+      throw new Error(`Failed to upsert document: ${doc.uri}`);
+    }
+
     if (!isSame && row) {
-      // Delete vectors using mapping table
+      this.cleanupDocumentChunks(result.id);
+    }
+    
+    return result.id;
+  }
+
+  private cleanupDocumentChunks(documentId: number): void {
+    const transaction = this.db.transaction(() => {
       this.db.prepare(`
         delete from vec_chunks where rowid in (
           select m.vec_rowid from chunk_vec_map m 
           join chunks c on c.id = m.chunk_id 
           where c.document_id = ?
         )
-      `).run(res.id);
-      this.db.prepare('delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)').run(res.id);
-      this.db.prepare('delete from chunks where document_id = ?').run(res.id);
-    }
-    return res.id;
-  }
-
-  insertChunks(document_id: number, chunks: { content: string; startLine?: number; endLine?: number; tokenCount?: number; }[]) {
-    const ins = this.db.prepare(`
-      insert into chunks (document_id, chunk_index, content, start_line, end_line, token_count)
-      values (?, ?, ?, ?, ?, ?)
-    `);
-    const t = this.db.transaction(() => {
-      for (let i = 0; i < chunks.length; i++) {
-        const c = chunks[i];
-        ins.run(document_id, i, c.content, c.startLine ?? null, c.endLine ?? null, c.tokenCount ?? null);
-      }
+      `).run(documentId);
+      
+      this.db.prepare('delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)').run(documentId);
+      this.db.prepare('delete from chunks where document_id = ?').run(documentId);
     });
-    t();
+    
+    transaction();
   }
 
-  async embedNewChunks(batchSize = 64) {
+  insertChunks(documentId: number, chunks: readonly ChunkInput[]): void {
+    const transaction = this.db.transaction(() => {
+      chunks.forEach((chunk, index) => {
+        this.insertChunkStmt.run(
+          documentId,
+          index,
+          chunk.content,
+          chunk.startLine ?? null,
+          chunk.endLine ?? null,
+          chunk.tokenCount ?? null
+        );
+      });
+    });
+    
+    transaction();
+  }
+
+  async embedNewChunks(batchSize: number = 64): Promise<void> {
     const embedder = getEmbedder();
-    const toEmbed = this.db.prepare(`
-      select c.id, c.content
-      from chunks c
-      left join chunk_vec_map m on m.chunk_id = c.id
-      where m.chunk_id is null
-      limit 10000
-    `).all() as { id: number, content: string }[];
+    const toEmbed = this.getChunksToEmbedStmt.all();
 
     for (let i = 0; i < toEmbed.length; i += batchSize) {
       const batch = toEmbed.slice(i, i + batchSize);
-      const vecs = await embedder.embed(batch.map(b => b.content));
-      const ins = this.db.prepare('insert into vec_chunks (embedding) values (?)');
-      const t = this.db.transaction(() => {
-        for (let j = 0; j < batch.length; j++) {
-          const embedding = JSON.stringify(Array.from(vecs[j]));
-          const result = ins.run(embedding);
-          // Store mapping between chunk_id and vec rowid
-          const mapIns = this.db.prepare('insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)');
-          mapIns.run(batch[j].id, result.lastInsertRowid);
-        }
+      const vecs = await embedder.embed(batch.map((b: ChunkToEmbed) => b.content));
+      
+      const transaction = this.db.transaction(() => {
+        batch.forEach((item: ChunkToEmbed, j: number) => {
+          const embedding = JSON.stringify(Array.from(vecs[j]!));
+          const result = this.insertVecStmt.run(embedding);
+          this.insertMapStmt.run(item.id, result.lastInsertRowid);
+        });
       });
-      t();
-      await new Promise(r => setTimeout(r, 30));
+      
+      transaction();
+      await new Promise(resolve => setTimeout(resolve, 30));
     }
   }
 
-  setMeta(key: string, value: string) {
-    this.db.prepare('insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value').run(key, value);
+  setMeta(key: string, value: string): void {
+    this.setMetaStmt.run(key, value);
   }
-  getMeta(key: string): string|undefined {
-    const row = this.db.prepare('select value from meta where key = ?').get(key) as { value: string } | undefined;
+
+  getMeta(key: string): string | undefined {
+    const row = this.getMetaStmt.get(key);
     return row?.value;
   }
 }

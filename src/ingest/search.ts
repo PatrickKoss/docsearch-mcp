@@ -1,22 +1,54 @@
 import type Database from 'better-sqlite3';
+import type { DB } from './db.js';
+import { SourceType, SearchResultRow } from '../shared/types.js';
+
+export type SearchMode = 'auto' | 'vector' | 'keyword';
 
 export interface SearchParams {
-  query: string;
-  topK?: number;
-  source?: 'file'|'confluence';
-  repo?: string;
-  pathPrefix?: string;
-  mode?: 'auto'|'vector'|'keyword';
+  readonly query: string;
+  readonly topK?: number;
+  readonly source?: SourceType;
+  readonly repo?: string;
+  readonly pathPrefix?: string;
+  readonly mode?: SearchMode;
 }
 
-export function hybridSearch(db: Database.Database, p: SearchParams) {
-  const topK = p.topK ?? 8;
+interface SearchBinds {
+  readonly [key: string]: unknown;
+  readonly query?: string;
+  readonly k: number;
+  readonly source?: SourceType;
+  readonly repo?: string;
+  readonly pathPrefix?: string;
+  readonly embedding?: string;
+}
+
+interface HybridSearchResult {
+  readonly kw: Database.Statement;
+  readonly vec: Database.Statement;
+  readonly binds: Record<string, unknown>;
+  readonly topK: number;
+}
+
+export function hybridSearch(db: DB, params: SearchParams): HybridSearchResult {
+  const topK = params.topK ?? 8;
 
   const filters: string[] = [];
-  const binds: any = {};
-  if (p.source) { filters.push('d.source = @source'); binds.source = p.source; }
-  if (p.repo) { filters.push('d.repo = @repo'); binds.repo = p.repo; }
-  if (p.pathPrefix) { filters.push('d.path like @pathPrefix'); binds.pathPrefix = p.pathPrefix + '%'; }
+  const binds: Record<string, unknown> = {};
+  
+  if (params.source) { 
+    filters.push('d.source = @source'); 
+    binds.source = params.source; 
+  }
+  if (params.repo) { 
+    filters.push('d.repo = @repo'); 
+    binds.repo = params.repo; 
+  }
+  if (params.pathPrefix) { 
+    filters.push('d.path like @pathPrefix'); 
+    binds.pathPrefix = params.pathPrefix + '%'; 
+  }
+  
   const filterSql = filters.length ? ('where ' + filters.join(' and ')) : '';
 
   const kw = db.prepare(`
@@ -52,5 +84,10 @@ export function hybridSearch(db: Database.Database, p: SearchParams) {
     limit $k
   `);
 
-  return { kw, vec, binds, topK };
+  return { 
+    kw, 
+    vec, 
+    binds: { ...binds, k: topK }, 
+    topK 
+  };
 }

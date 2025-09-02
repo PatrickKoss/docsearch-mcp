@@ -2,25 +2,43 @@ import { CONFIG } from '../shared/config.js';
 import { fetch } from 'undici';
 
 export interface Embedder {
-  dim: number;
-  embed(texts: string[]): Promise<Float32Array[]>;
+  readonly dim: number;
+  embed(texts: readonly string[]): Promise<readonly Float32Array[]>;
+}
+
+interface OpenAIEmbeddingData {
+  readonly embedding: readonly number[];
+}
+
+interface OpenAIEmbeddingResponse {
+  readonly data: readonly OpenAIEmbeddingData[];
+}
+
+interface TEIEmbeddingData {
+  readonly embedding: readonly number[];
+}
+
+interface TEIEmbeddingResponse {
+  readonly data: readonly TEIEmbeddingData[];
 }
 
 export class OpenAIEmbedder implements Embedder {
-  public dim: number;
-  private model: string;
-  private apiKey: string;
-  private baseURL: string;
+  public readonly dim: number;
+  private readonly model: string;
+  private readonly apiKey: string;
+  private readonly baseURL: string;
 
   constructor() {
-    if (!CONFIG.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY missing');
+    if (!CONFIG.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY missing');
+    }
     this.apiKey = CONFIG.OPENAI_API_KEY;
     this.baseURL = CONFIG.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     this.model = CONFIG.OPENAI_EMBED_MODEL;
     this.dim = CONFIG.OPENAI_EMBED_DIM;
   }
 
-  async embed(texts: string[]): Promise<Float32Array[]> {
+  async embed(texts: readonly string[]): Promise<readonly Float32Array[]> {
     if (texts.length === 0) return [];
     
     const response = await fetch(`${this.baseURL}/embeddings`, {
@@ -36,34 +54,43 @@ export class OpenAIEmbedder implements Embedder {
     });
 
     if (!response.ok) {
-      throw new Error(`Embeddings API error ${response.status}: ${await response.text()}`);
+      const errorText = await response.text();
+      throw new Error(`Embeddings API error ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json() as { data: Array<{ embedding: number[] }> };
-    return data.data.map((d: any) => new Float32Array(d.embedding));
+    const data = await response.json() as OpenAIEmbeddingResponse;
+    return data.data.map(d => new Float32Array(d.embedding));
   }
 }
 
 export class TEIEmbedder implements Embedder {
-  public dim: number;
-  private endpoint: string;
+  public readonly dim: number;
+  private readonly endpoint: string;
+  
   constructor() {
-    if (!CONFIG.TEI_ENDPOINT) throw new Error('TEI_ENDPOINT missing');
+    if (!CONFIG.TEI_ENDPOINT) {
+      throw new Error('TEI_ENDPOINT missing');
+    }
     this.endpoint = CONFIG.TEI_ENDPOINT.replace(/\/$/, '');
-    this.dim = CONFIG.OPENAI_EMBED_DIM; // set to your TEI dim via env
+    this.dim = CONFIG.OPENAI_EMBED_DIM;
   }
-  async embed(texts: string[]): Promise<Float32Array[]> {
+  
+  async embed(texts: readonly string[]): Promise<readonly Float32Array[]> {
     if (texts.length === 0) return [];
-    const r = await fetch(this.endpoint, {
+    
+    const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ input: texts })
     });
-    if (!r.ok) {
-      throw new Error(`TEI error ${r.status}: ${await r.text()}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`TEI error ${response.status}: ${errorText}`);
     }
-    const data = await r.json() as any;
-    return data.data.map((d: any) => new Float32Array(d.embedding));
+    
+    const data = await response.json() as TEIEmbeddingResponse;
+    return data.data.map(d => new Float32Array(d.embedding));
   }
 }
 

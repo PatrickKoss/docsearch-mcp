@@ -17,9 +17,9 @@ function isDoc(p: string) { return DOC_EXT.has(path.extname(p).toLowerCase()); }
 export async function ingestFiles(db: Database.Database) {
   const indexer = new Indexer(db);
   for (const root of CONFIG.FILE_ROOTS) {
-    const files = await fg(CONFIG.FILE_INCLUDE_GLOBS, {
+    const files = await fg([...CONFIG.FILE_INCLUDE_GLOBS], {
       cwd: root,
-      ignore: CONFIG.FILE_EXCLUDE_GLOBS,
+      ignore: [...CONFIG.FILE_EXCLUDE_GLOBS],
       dot: false,
       onlyFiles: true,
       unique: true,
@@ -46,8 +46,8 @@ export async function ingestFiles(db: Database.Database) {
           version: null,
           extra_json: null,
         });
-        const countRow = db.prepare('select count(*) as n from chunks where document_id = ?').get(docId) as any;
-        if (countRow.n === 0) {
+        const countRow = db.prepare('select count(*) as n from chunks where document_id = ?').get(docId) as { n: number } | undefined;
+        if (countRow?.n === 0) {
           const chunks = (isCode(abs) || !isDoc(abs)) ? chunkCode(content) : chunkDoc(content);
           indexer.insertChunks(docId, chunks);
         }
