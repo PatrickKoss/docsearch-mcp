@@ -11,6 +11,10 @@ const DOC_MAX_CHARS = 1200;
 const DOC_OVERLAP = 150;
 
 export function chunkCode(text: string): readonly Chunk[] {
+  if (!text.trim()) {
+    return [];
+  }
+  
   const lines = text.split(/\r?\n/);
   const chunks: Chunk[] = [];
   let start = 0;
@@ -18,29 +22,43 @@ export function chunkCode(text: string): readonly Chunk[] {
   while (start < lines.length) {
     let end = start;
     let acc = '';
+    let hasContent = false;
     
     for (let i = start; i < lines.length; i++) {
       const line = lines[i];
-      if (!line) continue;
+      const candidate = hasContent ? `${acc}\n${line}` : line;
       
-      const candidate = acc.length ? `${acc}\n${line}` : line;
-      if (candidate.length > CODE_MAX_CHARS) break;
+      // Check if adding this line would exceed the limit
+      if (candidate.length > CODE_MAX_CHARS && hasContent) {
+        break;
+      }
       
+      // Add the line to accumulator
       acc = candidate;
       end = i + 1;
       
-      if (acc.length >= CODE_MIN_CHARS && 
-          (/^\s*$/.test(line) || /\}\s*$/.test(line))) {
+      // Track if we have any non-empty content
+      if (line.trim()) {
+        hasContent = true;
+      }
+      
+      // Check if we should break at a natural boundary
+      if (hasContent && acc.length >= CODE_MIN_CHARS && 
+          (line.trim() === '' || /\}\s*$/.test(line))) {
         break;
       }
     }
     
-    if (!acc && lines[start]) {
+    // Handle case where we couldn't fit any content
+    if (!hasContent && start < lines.length) {
+      // Take at least one line, even if it's too long
       acc = lines[start]!;
       end = start + 1;
+      hasContent = true;
     }
     
-    if (acc) {
+    // Add chunk if we have content
+    if (hasContent && acc.trim()) {
       chunks.push({ 
         content: acc, 
         startLine: start + 1, 
@@ -49,13 +67,18 @@ export function chunkCode(text: string): readonly Chunk[] {
       });
     }
     
-    start = end;
+    // Ensure we always make progress
+    start = Math.max(start + 1, end);
   }
   
   return chunks;
 }
 
 export function chunkDoc(text: string): readonly Chunk[] {
+  if (!text.trim()) {
+    return [];
+  }
+  
   const chunks: Chunk[] = [];
   let i = 0;
   
@@ -69,7 +92,7 @@ export function chunkDoc(text: string): readonly Chunk[] {
     });
     
     if (end === text.length) break;
-    i = Math.max(0, end - DOC_OVERLAP);
+    i = Math.max(i + 1, end - DOC_OVERLAP); // Ensure progress
   }
   
   return chunks;
