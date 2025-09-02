@@ -1,0 +1,29 @@
+{
+  "name": "docsearch-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev:ingest": "tsx src/ingest/cli.ts",
+    "dev:mcp": "tsx src/server/mcp.ts",
+    "start:mcp": "node dist/server/mcp.js",
+    "start:ingest": "node dist/ingest/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "better-sqlite3": "^9.4.3",
+    "chokidar": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "fast-glob": "^3.3.2",
+    "openai": "^4.59.0",
+    "sqlite-vec": "^0.1.7-alpha.2",
+    "turndown": "^7.2.0",
+    "undici": "^6.19.8",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.2"
+  }
+}
