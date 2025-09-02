@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-import { openDb } from '../../src/ingest/db.js';
+import { SqliteAdapter } from '../../src/ingest/adapters/sqlite.js';
 import { ingestConfluence } from '../../src/ingest/sources/confluence.js';
 import { testDbPath } from '../setup.js';
 
@@ -17,17 +17,18 @@ vi.mock('../../src/shared/config.js', () => ({
 }));
 
 describe('Confluence Source Ingestion', () => {
-  let db: ReturnType<typeof openDb>;
+  let adapter: SqliteAdapter;
   let consoleSpy: any;
 
-  beforeEach(() => {
-    db = openDb({ path: testDbPath, embeddingDim: 1536 });
+  beforeEach(async () => {
+    adapter = new SqliteAdapter({ path: testDbPath, embeddingDim: 1536 });
+    await adapter.init();
     consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    db?.close();
+  afterEach(async () => {
+    await adapter?.close();
     consoleSpy?.mockRestore();
   });
 
@@ -77,7 +78,7 @@ describe('Confluence Source Ingestion', () => {
         CONFLUENCE_SPACES: [],
       });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
       expect(consoleSpy).toHaveBeenCalledWith('Confluence env missing; skipping');
       expect(mockFetch).not.toHaveBeenCalled();
@@ -115,7 +116,7 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/rest/api/search?cql='),
@@ -127,7 +128,10 @@ describe('Confluence Source Ingestion', () => {
         }),
       );
 
-      const documents = db.prepare('SELECT * FROM documents WHERE source = ?').all('confluence');
+      // @ts-expect-error - accessing private property for testing
+      const documents = adapter.db
+        .prepare('SELECT * FROM documents WHERE source = ?')
+        .all('confluence');
       expect(documents).toHaveLength(2);
 
       const doc1 = documents.find((d) => d.title === 'Test Page 1');
@@ -166,9 +170,10 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
-      const chunks = db.prepare('SELECT * FROM chunks ORDER BY id').all();
+      // @ts-expect-error - accessing private property for testing
+      const chunks = adapter.db.prepare('SELECT * FROM chunks ORDER BY id').all();
       expect(chunks.length).toBeGreaterThan(0);
 
       const markdownChunk = chunks.find((c) => c.content.includes('# Title'));
@@ -178,7 +183,7 @@ describe('Confluence Source Ingestion', () => {
     });
 
     it('should handle incremental sync with lastModified filter', async () => {
-      const indexer = new (await import('../../src/ingest/indexer.js')).Indexer(db);
+      const indexer = new (await import('../../src/ingest/indexer.js')).Indexer(adapter);
       indexer.setMeta('confluence.lastSync.PROJ', '2024-01-01T00:00:00.000Z');
 
       mockFetch
@@ -191,7 +196,7 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('lastmodified%20%3E%3D%202024-01-01T00%3A00%3A00.000Z'),
@@ -231,9 +236,10 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
-      const documents = db
+      // @ts-expect-error - accessing private property for testing
+      const documents = adapter.db
         .prepare('SELECT COUNT(*) as count FROM documents WHERE source = ?')
         .get('confluence');
       expect(documents.count).toBe(2);
@@ -263,9 +269,12 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
-      const doc = db.prepare('SELECT * FROM documents WHERE uri = ?').get('confluence://page123');
+      // @ts-expect-error - accessing private property for testing
+      const doc = adapter.db
+        .prepare('SELECT * FROM documents WHERE uri = ?')
+        .get('confluence://page123');
       expect(doc).toBeTruthy();
       expect(doc.title).toBe('Test Page');
       expect(doc.version).toBe('5');
@@ -294,8 +303,9 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
-      const initialChunks = db.prepare('SELECT COUNT(*) as count FROM chunks').get().count;
+      await ingestConfluence(adapter);
+      // @ts-expect-error - accessing private property for testing
+      const initialChunks = adapter.db.prepare('SELECT COUNT(*) as count FROM chunks').get().count;
 
       // Second ingestion with same content
       mockFetch
@@ -312,8 +322,9 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
-      const finalChunks = db.prepare('SELECT COUNT(*) as count FROM chunks').get().count;
+      await ingestConfluence(adapter);
+      // @ts-expect-error - accessing private property for testing
+      const finalChunks = adapter.db.prepare('SELECT COUNT(*) as count FROM chunks').get().count;
 
       expect(finalChunks).toBe(initialChunks);
     });
@@ -325,7 +336,7 @@ describe('Confluence Source Ingestion', () => {
         text: () => Promise.resolve('Unauthorized'),
       });
 
-      await expect(ingestConfluence(db)).rejects.toThrow('Confluence 401: Unauthorized');
+      await expect(ingestConfluence(adapter)).rejects.toThrow('Confluence 401: Unauthorized');
     });
 
     it('should handle missing page content gracefully', async () => {
@@ -352,9 +363,12 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
-      const doc = db.prepare('SELECT * FROM documents WHERE uri = ?').get('confluence://page123');
+      // @ts-expect-error - accessing private property for testing
+      const doc = adapter.db
+        .prepare('SELECT * FROM documents WHERE uri = ?')
+        .get('confluence://page123');
       expect(doc).toBeTruthy();
       expect(doc.title).toBe('No Body');
     });
@@ -371,12 +385,12 @@ describe('Confluence Source Ingestion', () => {
         });
 
       const beforeSync = Date.now();
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
       const afterSync = Date.now();
 
-      const indexer = new (await import('../../src/ingest/indexer.js')).Indexer(db);
-      const syncTime1 = indexer.getMeta('confluence.lastSync.PROJ');
-      const syncTime2 = indexer.getMeta('confluence.lastSync.DOCS');
+      const indexer = new (await import('../../src/ingest/indexer.js')).Indexer(adapter);
+      const syncTime1 = await indexer.getMeta('confluence.lastSync.PROJ');
+      const syncTime2 = await indexer.getMeta('confluence.lastSync.DOCS');
 
       expect(syncTime1).toBeTruthy();
       expect(syncTime2).toBeTruthy();
@@ -410,9 +424,12 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
-      const doc = db.prepare('SELECT * FROM documents WHERE uri = ?').get('confluence://direct123');
+      // @ts-expect-error - accessing private property for testing
+      const doc = adapter.db
+        .prepare('SELECT * FROM documents WHERE uri = ?')
+        .get('confluence://direct123');
       expect(doc).toBeTruthy();
       expect(doc.title).toBe('Direct ID Page');
     });
@@ -430,7 +447,7 @@ describe('Confluence Source Ingestion', () => {
           json: () => Promise.resolve({ results: [], _links: {} }),
         });
 
-      await ingestConfluence(db);
+      await ingestConfluence(adapter);
 
       const expectedAuth = Buffer.from('test@example.com:test-token').toString('base64');
       expect(mockFetch).toHaveBeenCalledWith(

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 type EmbeddingsProvider = 'openai' | 'tei';
+type DatabaseType = 'sqlite' | 'postgresql';
 
 interface AppConfig {
   readonly EMBEDDINGS_PROVIDER: EmbeddingsProvider;
@@ -19,7 +20,9 @@ interface AppConfig {
   readonly FILE_INCLUDE_GLOBS: readonly string[];
   readonly FILE_EXCLUDE_GLOBS: readonly string[];
 
+  readonly DB_TYPE: DatabaseType;
   readonly DB_PATH: string;
+  readonly POSTGRES_CONNECTION_STRING: string;
 }
 
 function splitCsv(v: string | undefined, def: string): readonly string[] {
@@ -35,6 +38,13 @@ function validateEmbeddingsProvider(provider: string): EmbeddingsProvider {
     return provider;
   }
   return 'openai';
+}
+
+function validateDatabaseType(dbType: string): DatabaseType {
+  if (dbType === 'sqlite' || dbType === 'postgresql') {
+    return dbType;
+  }
+  return 'sqlite';
 }
 
 export const CONFIG: AppConfig = {
@@ -60,5 +70,7 @@ export const CONFIG: AppConfig = {
     '**/{.git,node_modules,dist,build,target}/**',
   ),
 
+  DB_TYPE: validateDatabaseType(process.env.DB_TYPE || 'sqlite'),
   DB_PATH: process.env.DB_PATH || './data/index.db',
+  POSTGRES_CONNECTION_STRING: process.env.POSTGRES_CONNECTION_STRING || '',
 } as const;

@@ -10,7 +10,8 @@ This is a local-first document search and indexing system with an MCP server tha
 
 ```bash
 # Setup
-pnpm i                       # Install dependencies
+make setup                   # Install dependencies and setup .env
+pnpm i                       # Install dependencies only
 cp .env.example .env         # Set up environment variables
 
 # Data ingestion
@@ -22,6 +23,21 @@ pnpm dev:ingest watch        # Watch for file changes and re-index
 pnpm dev:mcp                 # Start MCP server in development
 pnpm build                   # Build TypeScript
 pnpm start:mcp               # Start built MCP server
+
+# Quality Assurance
+pnpm test                    # Run tests in watch mode
+pnpm test:run                # Run tests once
+pnpm test:ui                 # Run tests with UI
+pnpm test:coverage           # Run tests with coverage
+pnpm lint                    # Run ESLint
+pnpm lint:fix                # Run ESLint with auto-fix
+pnpm format                  # Format code with Prettier
+pnpm typecheck               # Run TypeScript type checking
+
+# Make commands (alternative workflow)
+make help                    # Show all available make commands
+make check-all              # Run linting, type checking, and tests
+make dev                    # Start MCP development server
 ```
 
 ## Architecture
@@ -78,3 +94,20 @@ Environment variables in `.env`:
 - File watching triggers full re-scan (simple but reliable)
 - Confluence syncing tracks last modification time per space
 - Document deduplication based on content hash
+
+## Quality Assurance
+
+The project includes comprehensive tooling for code quality:
+
+- **Testing**: Vitest for unit and integration tests with UI and coverage support
+- **Linting**: ESLint with TypeScript, import, and Prettier integration
+- **Formatting**: Prettier for consistent code style
+- **Type Safety**: Strict TypeScript configuration with full type checking
+- **Automation**: Makefile with common development workflows
+
+### Testing Strategy
+
+- Unit tests for core functionality (indexing, search, chunking)
+- Integration tests for database operations and MCP server
+- Mock implementations for external dependencies (OpenAI, Confluence)
+- Test coverage reporting and UI for development

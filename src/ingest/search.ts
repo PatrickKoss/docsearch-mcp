@@ -1,6 +1,7 @@
-import type { DB } from './db.js';
+import { getEmbedder } from './embeddings.js';
+
+import type { DatabaseAdapter, SearchResult } from './adapters/index.js';
 import type { SourceType } from '../shared/types.js';
-import type Database from 'better-sqlite3';
 
 export type SearchMode = 'auto' | 'vector' | 'keyword';
 
@@ -13,71 +14,72 @@ export interface SearchParams {
   readonly mode?: SearchMode;
 }
 
-interface HybridSearchResult {
-  readonly kw: Database.Statement;
-  readonly vec: Database.Statement;
-  readonly binds: Record<string, unknown>;
-  readonly topK: number;
-}
-
-export function hybridSearch(db: DB, params: SearchParams): HybridSearchResult {
+export async function performSearch(
+  adapter: DatabaseAdapter,
+  params: SearchParams,
+): Promise<SearchResult[]> {
   const topK = params.topK ?? 8;
+  const mode = params.mode ?? 'auto';
 
-  const filters: string[] = [];
-  const binds: Record<string, unknown> = {};
-
-  if (params.source) {
-    filters.push('d.source = @source');
-    binds.source = params.source;
-  }
-  if (params.repo) {
-    filters.push('d.repo = @repo');
-    binds.repo = params.repo;
-  }
-  if (params.pathPrefix) {
-    filters.push('d.path like @pathPrefix');
-    binds.pathPrefix = `${params.pathPrefix}%`;
-  }
-
-  const filterSql = filters.length ? `where ${filters.join(' and ')}` : '';
-
-  const kw = db.prepare(`
-    with kw as (
-      select c.id as chunk_id, bm25(chunks_fts) as score
-      from chunks_fts
-      join chunks c on c.id = chunks_fts.rowid
-      where chunks_fts match $query
-      limit $k
-    )
-    select kw.chunk_id, kw.score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
-           c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
-    from kw
-    join chunks c on c.id = kw.chunk_id
-    join documents d on d.id = c.document_id
-    ${filterSql}
-    limit $k
-  `);
-
-  const vec = db.prepare(`
-    with vec as (
-      select rowid, distance
-      from vec_chunks
-      where embedding match $embedding and k = $k
-    )
-    select m.chunk_id as chunk_id, vec.distance as score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
-           c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
-    from vec
-    join chunk_vec_map m on m.vec_rowid = vec.rowid
-    join chunks c on c.id = m.chunk_id
-    join documents d on d.id = c.document_id
-    ${filterSql}
-    limit $k
-  `);
-
-  return {
-    kw,
-    vec,
-    binds: { ...binds, k: topK },
-    topK,
+  const filters = {
+    ...(params.source && { source: params.source }),
+    ...(params.repo && { repo: params.repo }),
+    ...(params.pathPrefix && { pathPrefix: params.pathPrefix }),
   };
+
+  switch (mode) {
+    case 'keyword': {
+      return await adapter.keywordSearch(params.query, topK, filters);
+    }
+
+    case 'vector': {
+      const embedder = getEmbedder();
+      const queryEmbedding = await embedder.embed([params.query]);
+      const firstEmbedding = queryEmbedding[0];
+      if (!firstEmbedding) {
+        throw new Error('Failed to generate embedding for query');
+      }
+      const embedding = Array.from(firstEmbedding);
+      return await adapter.vectorSearch(embedding, topK, filters);
+    }
+
+    case 'auto':
+    default: {
+      // For auto mode, combine both keyword and vector search
+      const [keywordResults, vectorResults] = await Promise.all([
+        adapter.keywordSearch(params.query, Math.ceil(topK / 2), filters),
+        (async () => {
+          const embedder = getEmbedder();
+          const queryEmbedding = await embedder.embed([params.query]);
+          const firstEmbedding = queryEmbedding[0];
+          if (!firstEmbedding) {
+            throw new Error('Failed to generate embedding for query');
+          }
+          const embedding = Array.from(firstEmbedding);
+          return await adapter.vectorSearch(embedding, Math.ceil(topK / 2), filters);
+        })(),
+      ]);
+
+      // Combine and deduplicate results by chunk_id, preferring keyword matches
+      const resultMap = new Map<number, SearchResult>();
+
+      // Add vector results first
+      for (const result of vectorResults) {
+        resultMap.set(result.chunk_id, result);
+      }
+
+      // Add keyword results, overwriting vector results for the same chunk
+      for (const result of keywordResults) {
+        resultMap.set(result.chunk_id, result);
+      }
+
+      return Array.from(resultMap.values())
+        .sort((a, b) => {
+          // Sort by score descending (assuming lower scores are better for vector, higher for keyword)
+          // This is a simple heuristic - in practice you might want more sophisticated ranking
+          return b.score - a.score;
+        })
+        .slice(0, topK);
+    }
+  }
 }

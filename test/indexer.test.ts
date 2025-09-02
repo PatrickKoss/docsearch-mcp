@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { testDbPath } from './setup.js';
-import { openDb } from '../src/ingest/db.js';
+import { SqliteAdapter } from '../src/ingest/adapters/sqlite.js';
 import { Indexer } from '../src/ingest/indexer.js';
 
 import type { DocumentInput, ChunkInput } from '../src/shared/types.js';
@@ -19,16 +19,17 @@ vi.mock('../src/ingest/embeddings.js', () => ({
 }));
 
 describe('Indexer', () => {
-  let db: ReturnType<typeof openDb>;
+  let adapter: SqliteAdapter;
   let indexer: Indexer;
 
-  beforeEach(() => {
-    db = openDb({ path: testDbPath, embeddingDim: 1536 });
-    indexer = new Indexer(db);
+  beforeEach(async () => {
+    adapter = new SqliteAdapter({ path: testDbPath, embeddingDim: 1536 });
+    await adapter.init();
+    indexer = new Indexer(adapter);
   });
 
-  afterEach(() => {
-    db?.close();
+  afterEach(async () => {
+    await adapter?.close();
   });
 
   describe('Document operations', () => {
@@ -42,41 +43,43 @@ describe('Indexer', () => {
       hash: 'abc123',
       mtime: Date.now(),
       version: '1.0',
-      extra_json: JSON.stringify({ type: 'test' }),
+      extraJson: JSON.stringify({ type: 'test' }),
     };
 
-    it('should insert new document', () => {
-      const docId = indexer.upsertDocument(sampleDoc);
+    it('should insert new document', async () => {
+      const docId = await indexer.upsertDocument(sampleDoc);
       expect(docId).toBeGreaterThan(0);
 
-      const result = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
+      // @ts-expect-error - accessing private property for testing
+      const result = adapter.db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
       expect(result).toBeTruthy();
       expect(result.uri).toBe(sampleDoc.uri);
       expect(result.hash).toBe(sampleDoc.hash);
       expect(result.title).toBe(sampleDoc.title);
     });
 
-    it('should update existing document with same URI', () => {
-      const docId1 = indexer.upsertDocument(sampleDoc);
+    it('should update existing document with same URI', async () => {
+      const docId1 = await indexer.upsertDocument(sampleDoc);
 
       const updatedDoc = { ...sampleDoc, hash: 'xyz789', title: 'Updated Title' };
-      const docId2 = indexer.upsertDocument(updatedDoc);
+      const docId2 = await indexer.upsertDocument(updatedDoc);
 
       expect(docId1).toBe(docId2);
 
-      const result = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId2);
+      // @ts-expect-error - accessing private property for testing
+      const result = adapter.db.prepare('SELECT * FROM documents WHERE id = ?').get(docId2);
       expect(result.hash).toBe('xyz789');
       expect(result.title).toBe('Updated Title');
     });
 
-    it('should not update when hash is the same', () => {
-      const docId1 = indexer.upsertDocument(sampleDoc);
-      const docId2 = indexer.upsertDocument(sampleDoc);
+    it('should not update when hash is the same', async () => {
+      const docId1 = await indexer.upsertDocument(sampleDoc);
+      const docId2 = await indexer.upsertDocument(sampleDoc);
 
       expect(docId1).toBe(docId2);
     });
 
-    it('should handle null/optional fields', () => {
+    it('should handle null/optional fields', async () => {
       const minimalDoc: DocumentInput = {
         source: 'file',
         uri: 'test://minimal.txt',
@@ -87,13 +90,14 @@ describe('Indexer', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
 
-      const docId = indexer.upsertDocument(minimalDoc);
+      const docId = await indexer.upsertDocument(minimalDoc);
       expect(docId).toBeGreaterThan(0);
 
-      const result = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
+      // @ts-expect-error - accessing private property for testing
+      const result = adapter.db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
       expect(result.uri).toBe(minimalDoc.uri);
       expect(result.repo).toBeNull();
       expect(result.path).toBeNull();
@@ -103,7 +107,7 @@ describe('Indexer', () => {
   describe('Chunk operations', () => {
     let docId: number;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       const sampleDoc: DocumentInput = {
         source: 'file',
         uri: 'test://chunks.txt',
@@ -114,21 +118,22 @@ describe('Indexer', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      docId = indexer.upsertDocument(sampleDoc);
+      docId = await indexer.upsertDocument(sampleDoc);
     });
 
-    it('should insert chunks for document', () => {
+    it('should insert chunks for document', async () => {
       const chunks: ChunkInput[] = [
         { content: 'First chunk', startLine: 1, endLine: 5, tokenCount: 10 },
         { content: 'Second chunk', startLine: 6, endLine: 10, tokenCount: 12 },
         { content: 'Third chunk', tokenCount: 8 },
       ];
 
-      indexer.insertChunks(docId, chunks);
+      await indexer.insertChunks(docId, chunks);
 
-      const result = db
+      // @ts-expect-error - accessing private property for testing
+      const result = adapter.db
         .prepare('SELECT * FROM chunks WHERE document_id = ? ORDER BY chunk_index')
         .all(docId);
       expect(result).toHaveLength(3);
@@ -148,10 +153,11 @@ describe('Indexer', () => {
       expect(result[2].end_line).toBeNull();
     });
 
-    it('should handle empty chunks array', () => {
-      indexer.insertChunks(docId, []);
+    it('should handle empty chunks array', async () => {
+      await indexer.insertChunks(docId, []);
 
-      const result = db
+      // @ts-expect-error - accessing private property for testing
+      const result = adapter.db
         .prepare('SELECT COUNT(*) as count FROM chunks WHERE document_id = ?')
         .get(docId);
       expect(result.count).toBe(0);
@@ -161,7 +167,7 @@ describe('Indexer', () => {
   describe('Embedding operations', () => {
     let docId: number;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       const sampleDoc: DocumentInput = {
         source: 'file',
         uri: 'test://embed.txt',
@@ -172,35 +178,43 @@ describe('Indexer', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      docId = indexer.upsertDocument(sampleDoc);
+      docId = await indexer.upsertDocument(sampleDoc);
 
       const chunks: ChunkInput[] = [
         { content: 'Chunk to embed 1' },
         { content: 'Chunk to embed 2' },
       ];
-      indexer.insertChunks(docId, chunks);
+      await indexer.insertChunks(docId, chunks);
     });
 
     it('should embed new chunks', async () => {
       await indexer.embedNewChunks(1);
 
-      const embeddedCount = db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get();
+      // @ts-expect-error - accessing private property for testing
+      const embeddedCount = adapter.db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get();
       expect(embeddedCount.count).toBe(2);
 
-      const vecCount = db.prepare('SELECT COUNT(*) as count FROM vec_chunks').get();
+      // @ts-expect-error - accessing private property for testing
+      const vecCount = adapter.db.prepare('SELECT COUNT(*) as count FROM vec_chunks').get();
       expect(vecCount.count).toBe(2);
     });
 
     it('should not re-embed already embedded chunks', async () => {
       await indexer.embedNewChunks();
 
-      const initialCount = db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get().count;
+      // @ts-expect-error - accessing private property for testing
+      const initialCount = adapter.db
+        .prepare('SELECT COUNT(*) as count FROM chunk_vec_map')
+        .get().count;
 
       await indexer.embedNewChunks();
 
-      const finalCount = db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get().count;
+      // @ts-expect-error - accessing private property for testing
+      const finalCount = adapter.db
+        .prepare('SELECT COUNT(*) as count FROM chunk_vec_map')
+        .get().count;
       expect(finalCount).toBe(initialCount);
     });
 
@@ -231,70 +245,78 @@ describe('Indexer', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      const docId = indexer.upsertDocument(doc);
+      const docId = await indexer.upsertDocument(doc);
 
       const chunks: ChunkInput[] = [
         { content: 'Original chunk 1' },
         { content: 'Original chunk 2' },
       ];
-      indexer.insertChunks(docId, chunks);
+      await indexer.insertChunks(docId, chunks);
       await indexer.embedNewChunks();
 
-      const initialChunkCount = db
+      // @ts-expect-error - accessing private property for testing
+      const initialChunkCount = adapter.db
         .prepare('SELECT COUNT(*) as count FROM chunks WHERE document_id = ?')
         .get(docId).count;
-      const initialVecCount = db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get().count;
+      // @ts-expect-error - accessing private property for testing
+      const initialVecCount = adapter.db
+        .prepare('SELECT COUNT(*) as count FROM chunk_vec_map')
+        .get().count;
       expect(initialChunkCount).toBe(2);
       expect(initialVecCount).toBe(2);
 
       const updatedDoc = { ...doc, hash: 'updated456' };
-      indexer.upsertDocument(updatedDoc);
+      await indexer.upsertDocument(updatedDoc);
 
-      const finalChunkCount = db
+      // @ts-expect-error - accessing private property for testing
+      const finalChunkCount = adapter.db
         .prepare('SELECT COUNT(*) as count FROM chunks WHERE document_id = ?')
         .get(docId).count;
-      const finalVecCount = db.prepare('SELECT COUNT(*) as count FROM chunk_vec_map').get().count;
+      // @ts-expect-error - accessing private property for testing
+      const finalVecCount = adapter.db
+        .prepare('SELECT COUNT(*) as count FROM chunk_vec_map')
+        .get().count;
       expect(finalChunkCount).toBe(0);
       expect(finalVecCount).toBe(0);
     });
   });
 
   describe('Metadata operations', () => {
-    it('should set and get metadata', () => {
-      indexer.setMeta('test_key', 'test_value');
+    it('should set and get metadata', async () => {
+      await indexer.setMeta('test_key', 'test_value');
 
-      const value = indexer.getMeta('test_key');
+      const value = await indexer.getMeta('test_key');
       expect(value).toBe('test_value');
     });
 
-    it('should return undefined for non-existent keys', () => {
-      const value = indexer.getMeta('non_existent_key');
+    it('should return undefined for non-existent keys', async () => {
+      const value = await indexer.getMeta('non_existent_key');
       expect(value).toBeUndefined();
     });
 
-    it('should update existing metadata', () => {
-      indexer.setMeta('key', 'original_value');
-      indexer.setMeta('key', 'updated_value');
+    it('should update existing metadata', async () => {
+      await indexer.setMeta('key', 'original_value');
+      await indexer.setMeta('key', 'updated_value');
 
-      const value = indexer.getMeta('key');
+      const value = await indexer.getMeta('key');
       expect(value).toBe('updated_value');
     });
 
-    it('should handle empty string values', () => {
-      indexer.setMeta('empty_key', '');
+    it('should handle empty string values', async () => {
+      await indexer.setMeta('empty_key', '');
 
-      const value = indexer.getMeta('empty_key');
+      const value = await indexer.getMeta('empty_key');
       expect(value).toBe('');
     });
   });
 
   describe('Error handling', () => {
-    it('should throw error if document upsert fails', () => {
+    it('should throw error if document upsert fails', async () => {
       const invalidDoc = {} as DocumentInput;
 
-      expect(() => indexer.upsertDocument(invalidDoc)).toThrow();
+      await expect(indexer.upsertDocument(invalidDoc)).rejects.toThrow();
     });
 
     it('should handle embedding errors gracefully', async () => {
@@ -312,10 +334,10 @@ describe('Indexer', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      const docId = indexer.upsertDocument(doc);
-      indexer.insertChunks(docId, [{ content: 'Test content' }]);
+      const docId = await indexer.upsertDocument(doc);
+      await indexer.insertChunks(docId, [{ content: 'Test content' }]);
 
       await expect(indexer.embedNewChunks()).rejects.toThrow('Embedding service down');
     });

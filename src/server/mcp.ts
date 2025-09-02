@@ -2,26 +2,14 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { openDb } from '../ingest/db.js';
-import { getEmbedder } from '../ingest/embeddings.js';
-import { hybridSearch } from '../ingest/search.js';
+import { getDatabase } from '../ingest/database.js';
+import { performSearch } from '../ingest/search.js';
 
+import type { SearchResult as AdapterSearchResult } from '../ingest/adapters/index.js';
 import type { SearchParams, SearchMode } from '../ingest/search.js';
-import type { SourceType, SearchResultRow } from '../shared/types.js';
+import type { SourceType } from '../shared/types.js';
 
-interface ChunkWithDocumentRow {
-  readonly id: number;
-  readonly content: string;
-  readonly uri: string;
-  readonly title?: string | null;
-  readonly path?: string | null;
-  readonly repo?: string | null;
-  readonly source: string;
-  readonly start_line?: number | null;
-  readonly end_line?: number | null;
-}
-
-interface SearchResult extends SearchResultRow {
+interface SearchResult extends AdapterSearchResult {
   readonly reason: 'keyword' | 'vector';
 }
 
@@ -65,24 +53,21 @@ server.registerResource(
     mimeType: 'text/markdown',
   },
   async (_uri, { id }) => {
-    const db = openDb();
-    const stmt = db.prepare(`
-      select c.id, c.content, d.uri, d.title, d.path, d.repo, d.source, c.start_line, c.end_line
-      from chunks c join documents d on d.id = c.document_id
-      where c.id = ?
-    `);
-    const row = stmt.get(Number(id)) as ChunkWithDocumentRow | undefined;
+    const adapter = await getDatabase();
+    const chunkContent = await adapter.getChunkContent(Number(id));
 
-    if (!row) {
+    if (!chunkContent) {
       return { contents: [{ uri: `docchunk://${id}`, text: 'Not found' }] };
     }
 
-    const title = row.title || row.path || row.uri;
-    const location = row.path ? `• ${row.path}` : '';
-    const lines = row.start_line ? `(lines ${row.start_line}-${row.end_line})` : '';
-    const header = `# ${title}\n\n> ${row.source} • ${row.repo || ''} ${location} ${lines}\n\n`;
+    const title = chunkContent.title || chunkContent.path || chunkContent.uri;
+    const location = chunkContent.path ? `• ${chunkContent.path}` : '';
+    const lines = chunkContent.start_line
+      ? `(lines ${chunkContent.start_line}-${chunkContent.end_line})`
+      : '';
+    const header = `# ${title}\n\n> ${chunkContent.source} • ${chunkContent.repo || ''} ${location} ${lines}\n\n`;
 
-    return { contents: [{ uri: `docchunk://${id}`, text: header + row.content }] };
+    return { contents: [{ uri: `docchunk://${id}`, text: header + chunkContent.content }] };
   },
 );
 
@@ -101,42 +86,16 @@ server.registerTool(
     },
   },
   async (input: SearchToolInput) => {
-    const db = openDb();
-    const embedder = getEmbedder();
-    const { kw, vec, binds } = hybridSearch(db, input as SearchParams);
-    const results: SearchResult[] = [];
+    const adapter = await getDatabase();
+    const searchResults = await performSearch(adapter, input as SearchParams);
 
-    if (input.mode !== 'vector') {
-      const kwResults = kw.all({ query: input.query, ...binds });
-      for (const r of kwResults) {
-        results.push({ ...r, reason: 'keyword' });
-      }
-    }
+    // Convert adapter results to our SearchResult format
+    const results: SearchResult[] = searchResults.map((r) => ({
+      ...r,
+      reason: 'vector' as const, // performSearch handles both modes internally
+    }));
 
-    if (input.mode !== 'keyword') {
-      const embeddings = await embedder.embed([input.query]);
-      const firstEmbedding = embeddings[0];
-      if (!firstEmbedding) {
-        throw new Error('Failed to generate embedding for query');
-      }
-      const embedding = JSON.stringify(Array.from(firstEmbedding));
-      const vecResults = vec.all({ embedding, ...binds });
-      for (const r of vecResults) {
-        results.push({ ...r, reason: 'vector' });
-      }
-    }
-
-    const byId = new Map<number, SearchResult>();
-    for (const r of results) {
-      const prev = byId.get(r.chunk_id);
-      if (!prev) {
-        byId.set(r.chunk_id, r);
-      } else if (r.reason === 'vector' && prev.reason !== 'vector') {
-        byId.set(r.chunk_id, r);
-      }
-    }
-
-    const items = Array.from(byId.values()).slice(0, input.topK ?? 8);
+    const items = results.slice(0, input.topK ?? 8);
 
     const content: ContentItem[] = [
       { type: 'text', text: `Found ${items.length} results for "${input.query}"` },

@@ -6,7 +6,7 @@ import { CONFIG } from '../../shared/config.js';
 import { chunkDoc } from '../chunker.js';
 import { Indexer } from '../indexer.js';
 
-import type Database from 'better-sqlite3';
+import type { DatabaseAdapter } from '../adapters/index.js';
 
 const td = new TurndownService({ headingStyle: 'atx' });
 
@@ -25,15 +25,15 @@ async function cfFetch(path: string) {
   return r.json();
 }
 
-export async function ingestConfluence(db: Database.Database) {
+export async function ingestConfluence(adapter: DatabaseAdapter) {
   if (!CONFIG.CONFLUENCE_BASE_URL || !CONFIG.CONFLUENCE_EMAIL || !CONFIG.CONFLUENCE_API_TOKEN) {
     console.warn('Confluence env missing; skipping');
     return;
   }
-  const indexer = new Indexer(db);
+  const indexer = new Indexer(adapter);
   for (const space of CONFIG.CONFLUENCE_SPACES) {
     const metaKey = `confluence.lastSync.${space}`;
-    const since = indexer.getMeta(metaKey);
+    const since = await indexer.getMeta(metaKey);
     const cql = since
       ? encodeURIComponent(`space="${space}" and type=page and lastmodified >= ${since}`)
       : encodeURIComponent(`space="${space}" and type=page`);
@@ -56,7 +56,7 @@ export async function ingestConfluence(db: Database.Database) {
         const uri = `confluence://${id}`;
         const version = String(detail.version?.number ?? '');
         const hash = sha256(md + version);
-        const docId = indexer.upsertDocument({
+        const docId = await indexer.upsertDocument({
           source: 'confluence',
           uri,
           repo: null,
@@ -68,13 +68,12 @@ export async function ingestConfluence(db: Database.Database) {
             detail.version?.when || detail.history?.createdDate || new Date().toISOString(),
           ),
           version,
-          extra_json: JSON.stringify({ space: detail.space?.key, webui: detail._links?.webui }),
+          extraJson: JSON.stringify({ space: detail.space?.key, webui: detail._links?.webui }),
         });
-        const countRow = db
-          .prepare('select count(*) as n from chunks where document_id = ?')
-          .get(docId) as { n: number };
-        if (countRow.n === 0) {
-          indexer.insertChunks(docId, chunkDoc(md));
+
+        const hasChunks = await adapter.hasChunks(docId);
+        if (!hasChunks) {
+          await indexer.insertChunks(docId, chunkDoc(md));
         }
       }
       if (!page._links || !page._links.next) {
@@ -82,7 +81,7 @@ export async function ingestConfluence(db: Database.Database) {
       }
       start += limit;
     }
-    indexer.setMeta(metaKey, new Date().toISOString());
+    await indexer.setMeta(metaKey, new Date().toISOString());
   }
 }
 

@@ -1,20 +1,28 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { testDbPath } from './setup.js';
-import { openDb } from '../src/ingest/db.js';
+import { SqliteAdapter } from '../src/ingest/adapters/sqlite.js';
 import { Indexer } from '../src/ingest/indexer.js';
-import { hybridSearch } from '../src/ingest/search.js';
+import { performSearch } from '../src/ingest/search.js';
 
 import type { SearchParams } from '../src/ingest/search.js';
 import type { DocumentInput, ChunkInput } from '../src/shared/types.js';
 
+// Mock the embeddings module since we don't want to make real API calls in tests
+vi.mock('../src/ingest/embeddings.js', () => ({
+  getEmbedder: () => ({
+    embed: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+  }),
+}));
+
 describe('Search', () => {
-  let db: ReturnType<typeof openDb>;
+  let adapter: SqliteAdapter;
   let indexer: Indexer;
 
   beforeEach(async () => {
-    db = openDb({ path: testDbPath, embeddingDim: 1536 });
-    indexer = new Indexer(db);
+    adapter = new SqliteAdapter({ path: testDbPath, embeddingDim: 1536 });
+    await adapter.init();
+    indexer = new Indexer(adapter);
 
     const docs: DocumentInput[] = [
       {
@@ -27,7 +35,7 @@ describe('Search', () => {
         hash: 'hash1',
         mtime: Date.now(),
         version: '1.0',
-        extra_json: null,
+        extraJson: null,
       },
       {
         source: 'confluence',
@@ -39,7 +47,7 @@ describe('Search', () => {
         mtime: Date.now(),
         version: '2.0',
         lang: 'md',
-        extra_json: null,
+        extraJson: null,
       },
       {
         source: 'file',
@@ -51,7 +59,7 @@ describe('Search', () => {
         hash: 'hash3',
         mtime: Date.now(),
         version: '1.5',
-        extra_json: null,
+        extraJson: null,
       },
     ];
 
@@ -93,101 +101,97 @@ describe('Search', () => {
     ];
 
     for (let i = 0; i < docs.length; i++) {
-      const docId = indexer.upsertDocument(docs[i]);
-      indexer.insertChunks(docId, chunks[i]);
+      const docId = await indexer.upsertDocument(docs[i]);
+      await indexer.insertChunks(docId, chunks[i]);
     }
   });
 
-  afterEach(() => {
-    db?.close();
+  afterEach(async () => {
+    await adapter?.close();
   });
 
-  describe('hybridSearch', () => {
-    it('should create search statements with default parameters', () => {
-      const params: SearchParams = { query: 'test' };
-      const result = hybridSearch(db, params);
+  describe('performSearch', () => {
+    it('should perform search with default parameters', async () => {
+      const params: SearchParams = { query: 'search' };
+      const results = await performSearch(adapter, params);
 
-      expect(result.kw).toBeDefined();
-      expect(result.vec).toBeDefined();
-      expect(result.binds).toEqual({ k: 8 });
-      expect(result.topK).toBe(8);
+      expect(Array.isArray(results)).toBe(true);
+      // Results may be empty if no embeddings are inserted, but should not error
     });
 
-    it('should use custom topK parameter', () => {
-      const params: SearchParams = { query: 'test', topK: 15 };
-      const result = hybridSearch(db, params);
+    it('should respect topK parameter', async () => {
+      const params: SearchParams = { query: 'function', topK: 1 };
+      const results = await performSearch(adapter, params);
 
-      expect(result.binds.k).toBe(15);
-      expect(result.topK).toBe(15);
+      expect(results.length).toBeLessThanOrEqual(1);
     });
 
-    it('should apply source filter', () => {
+    it('should apply source filter', async () => {
       const params: SearchParams = {
-        query: 'test',
+        query: 'search',
         source: 'file',
       };
-      const result = hybridSearch(db, params);
+      const results = await performSearch(adapter, params);
 
-      expect(result.binds.source).toBe('file');
-      expect(result.binds.k).toBe(8);
+      // All results should be from 'file' source
+      results.forEach((result) => {
+        expect(result.source).toBe('file');
+      });
     });
 
-    it('should apply repo filter', () => {
+    it('should apply repo filter', async () => {
       const params: SearchParams = {
-        query: 'test',
+        query: 'search',
         repo: 'project-a',
       };
-      const result = hybridSearch(db, params);
+      const results = await performSearch(adapter, params);
 
-      expect(result.binds.repo).toBe('project-a');
-      expect(result.binds.k).toBe(8);
+      // All results should be from 'project-a' repo
+      results.forEach((result) => {
+        expect(result.repo).toBe('project-a');
+      });
     });
 
-    it('should apply path prefix filter', () => {
+    it('should apply path prefix filter', async () => {
       const params: SearchParams = {
-        query: 'test',
+        query: 'function',
         pathPrefix: 'src/',
       };
-      const result = hybridSearch(db, params);
+      const results = await performSearch(adapter, params);
 
-      expect(result.binds.pathPrefix).toBe('src/%');
-      expect(result.binds.k).toBe(8);
-    });
-
-    it('should combine multiple filters', () => {
-      const params: SearchParams = {
-        query: 'test',
-        source: 'file',
-        repo: 'project-a',
-        pathPrefix: 'src/utils',
-        topK: 5,
-      };
-      const result = hybridSearch(db, params);
-
-      expect(result.binds).toEqual({
-        source: 'file',
-        repo: 'project-a',
-        pathPrefix: 'src/utils%',
-        k: 5,
+      // All results should have paths starting with 'src/'
+      results.forEach((result) => {
+        if (result.path) {
+          expect(result.path).toMatch(/^src\//);
+        }
       });
-      expect(result.topK).toBe(5);
     });
 
-    it('should handle empty filters', () => {
-      const params: SearchParams = { query: 'test' };
-      const result = hybridSearch(db, params);
+    it('should support keyword mode', async () => {
+      const params: SearchParams = {
+        query: 'search',
+        mode: 'keyword',
+      };
+      const results = await performSearch(adapter, params);
 
-      expect(result.binds).toEqual({ k: 8 });
-      expect(Object.keys(result.binds)).toHaveLength(1);
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it('should support vector mode', async () => {
+      const params: SearchParams = {
+        query: 'database',
+        mode: 'vector',
+      };
+      const results = await performSearch(adapter, params);
+
+      expect(Array.isArray(results)).toBe(true);
     });
   });
 
-  describe('Search statement execution', () => {
-    it('should execute keyword search successfully', () => {
-      const params: SearchParams = { query: 'search' };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'search', ...binds });
+  describe('Search result validation', () => {
+    it('should return well-formed search results', async () => {
+      const params: SearchParams = { query: 'search', mode: 'keyword' };
+      const results = await performSearch(adapter, params);
 
       expect(Array.isArray(results)).toBe(true);
 
@@ -202,52 +206,9 @@ describe('Search', () => {
       }
     });
 
-    it('should handle keyword search with filters', () => {
-      const params: SearchParams = {
-        query: 'search',
-        source: 'file',
-      };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'search', ...binds });
-
-      if (results.length > 0) {
-        results.forEach((result) => {
-          expect(result.source).toBe('file');
-        });
-      }
-    });
-
-    it('should execute vector search with mock embedding', () => {
-      const params: SearchParams = { query: 'database' };
-      const { vec, binds } = hybridSearch(db, params);
-
-      const mockEmbedding = JSON.stringify(Array(1536).fill(0.1));
-      const results = vec.all({
-        embedding: mockEmbedding,
-        ...binds,
-      });
-
-      expect(Array.isArray(results)).toBe(true);
-    });
-
-    it('should limit results to topK', () => {
-      const params: SearchParams = {
-        query: 'function',
-        topK: 1,
-      };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'function', ...binds });
-
-      expect(results.length).toBeLessThanOrEqual(1);
-    });
-
-    it('should return snippet with limited length', () => {
-      const params: SearchParams = { query: 'function' };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'function', ...binds });
+    it('should return snippet with limited length', async () => {
+      const params: SearchParams = { query: 'function', mode: 'keyword' };
+      const results = await performSearch(adapter, params);
 
       if (results.length > 0) {
         const result = results[0];
@@ -256,11 +217,9 @@ describe('Search', () => {
       }
     });
 
-    it('should include line numbers when available', () => {
-      const params: SearchParams = { query: 'function' };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'function', ...binds });
+    it('should include line numbers when available', async () => {
+      const params: SearchParams = { query: 'function', mode: 'keyword' };
+      const results = await performSearch(adapter, params);
 
       if (results.length > 0) {
         const result = results[0];
@@ -274,73 +233,43 @@ describe('Search', () => {
       }
     });
 
-    it('should handle repo filter correctly', () => {
-      const params: SearchParams = {
-        query: 'search',
-        repo: 'project-a',
-      };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'search', ...binds });
-
-      results.forEach((result) => {
-        expect(result.repo).toBe('project-a');
-      });
-    });
-
-    it('should handle path prefix filter correctly', () => {
-      const params: SearchParams = {
-        query: 'function',
-        pathPrefix: 'src/utils',
-      };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'function', ...binds });
-
-      results.forEach((result) => {
-        expect(result.path).toMatch(/^src\/utils/);
-      });
-    });
-
-    it('should handle empty query results', () => {
-      const params: SearchParams = { query: 'nonexistentterm12345' };
-      const { kw, binds } = hybridSearch(db, params);
-
-      const results = kw.all({ query: 'nonexistentterm12345', ...binds });
+    it('should handle empty query results', async () => {
+      const params: SearchParams = { query: 'nonexistentterm12345', mode: 'keyword' };
+      const results = await performSearch(adapter, params);
 
       expect(results).toEqual([]);
     });
   });
 
-  describe('SQL injection prevention', () => {
-    it('should handle special characters in query safely', () => {
-      const params: SearchParams = { query: "'; DROP TABLE documents; --" };
-      const { kw, binds } = hybridSearch(db, params);
+  describe('Security and error handling', () => {
+    it('should handle special characters in query safely', async () => {
+      const params: SearchParams = {
+        query: "'; DROP TABLE documents; --",
+        mode: 'keyword',
+      };
 
       // FTS5 should reject malformed queries with special characters - this is the safe behavior
       // It prevents any SQL injection by throwing an error on invalid FTS5 syntax
-      expect(() => {
-        kw.all({ query: "'; DROP TABLE documents; --", ...binds });
-      }).toThrow(/fts5: syntax error/);
+      await expect(performSearch(adapter, params)).rejects.toThrow(/fts5: syntax error/);
 
       // Verify the table still exists (injection attempt failed)
-      const tableExists = db
+      // @ts-expect-error - accessing private property for testing
+      const tableExists = adapter.db
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
         .get();
       expect(tableExists).toBeTruthy();
     });
 
-    it('should handle special characters in filters safely', () => {
+    it('should handle special characters in filters safely', async () => {
       const params: SearchParams = {
         query: 'test',
         repo: "'; DROP TABLE documents; --",
         pathPrefix: '../../../etc/passwd',
+        mode: 'keyword',
       };
-      const { kw, binds } = hybridSearch(db, params);
 
-      expect(() => {
-        kw.all({ query: 'test', ...binds });
-      }).not.toThrow();
+      // Should not throw - parameterized queries protect against injection in filters
+      await expect(performSearch(adapter, params)).resolves.not.toThrow();
     });
   });
 });

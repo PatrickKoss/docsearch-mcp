@@ -99,8 +99,19 @@ test-coverage: ## Run tests with coverage
 	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
 	pnpm test:coverage
 
+.PHONY: test-unit
+test-unit: ## Run unit tests only
+	@echo -e "$(BLUE)Running unit tests...$(NC)"
+	pnpm test:unit
+
+.PHONY: test-integration
+test-integration: ## Run integration tests (requires Docker)
+	@echo -e "$(BLUE)Running integration tests...$(NC)"
+	@echo -e "$(YELLOW)Note: Docker must be running for integration tests$(NC)"
+	pnpm test:integration
+
 .PHONY: check-all
-check-all: lint typecheck test-run ## Run all quality checks
+check-all: lint typecheck test-unit ## Run all quality checks
 	@echo -e "$(GREEN)All quality checks passed!$(NC)"
 
 ##@ Production Commands

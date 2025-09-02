@@ -9,7 +9,7 @@ import { chunkCode, chunkDoc } from '../chunker.js';
 import { sha256 } from '../hash.js';
 import { Indexer } from '../indexer.js';
 
-import type Database from 'better-sqlite3';
+import type { DatabaseAdapter } from '../adapters/index.js';
 
 const CODE_EXT = new Set([
   '.ts',
@@ -37,8 +37,8 @@ function isDoc(p: string) {
   return DOC_EXT.has(path.extname(p).toLowerCase());
 }
 
-export async function ingestFiles(db: Database.Database) {
-  const indexer = new Indexer(db);
+export async function ingestFiles(adapter: DatabaseAdapter) {
+  const indexer = new Indexer(adapter);
   for (const root of CONFIG.FILE_ROOTS) {
     const files = await fg([...CONFIG.FILE_INCLUDE_GLOBS], {
       cwd: root,
@@ -57,7 +57,7 @@ export async function ingestFiles(db: Database.Database) {
         const rel = path.relative(process.cwd(), abs);
         const uri = `file://${abs}`;
         const stat = await fs.stat(abs);
-        const docId = indexer.upsertDocument({
+        const docId = await indexer.upsertDocument({
           source: 'file',
           uri,
           repo: guessRepo(abs),
@@ -67,14 +67,14 @@ export async function ingestFiles(db: Database.Database) {
           hash,
           mtime: stat.mtimeMs,
           version: null,
-          extra_json: null,
+          extraJson: null,
         });
-        const countRow = db
-          .prepare('select count(*) as n from chunks where document_id = ?')
-          .get(docId) as { n: number } | undefined;
-        if (countRow?.n === 0) {
+
+        const hasChunks = await adapter.hasChunks(docId);
+
+        if (!hasChunks) {
           const chunks = isCode(abs) || !isDoc(abs) ? chunkCode(content) : chunkDoc(content);
-          indexer.insertChunks(docId, chunks);
+          await indexer.insertChunks(docId, chunks);
         }
       } catch (e) {
         console.error('ingest file error:', abs, e);

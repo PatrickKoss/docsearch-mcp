@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-import { openDb } from '../../src/ingest/db.js';
+import { SqliteAdapter } from '../../src/ingest/adapters/sqlite.js';
 import { Indexer } from '../../src/ingest/indexer.js';
 import { testDbPath } from '../setup.js';
 
@@ -13,18 +13,15 @@ vi.mock('../../src/ingest/embeddings.js', () => ({
   }),
 }));
 
-vi.mock('../../src/ingest/db.js');
-
 describe('MCP Server', () => {
-  let db: ReturnType<typeof openDb>;
+  let adapter: SqliteAdapter;
   let indexer: Indexer;
 
   beforeEach(async () => {
-    const realOpenDb = (await vi.importActual('../../src/ingest/db.js')) as any;
-    db = realOpenDb.openDb({ path: testDbPath, embeddingDim: 1536 });
-    vi.mocked(openDb).mockReturnValue(db);
+    adapter = new SqliteAdapter({ path: testDbPath, embeddingDim: 1536 });
+    await adapter.init();
 
-    indexer = new Indexer(db);
+    indexer = new Indexer(adapter);
 
     const testDoc: DocumentInput = {
       source: 'file',
@@ -36,10 +33,10 @@ describe('MCP Server', () => {
       hash: 'abc123',
       mtime: Date.now(),
       version: '1.0',
-      extra_json: null,
+      extraJson: null,
     };
 
-    const docId = indexer.upsertDocument(testDoc);
+    const docId = await indexer.upsertDocument(testDoc);
     const chunks: ChunkInput[] = [
       {
         content:
@@ -55,19 +52,20 @@ describe('MCP Server', () => {
         tokenCount: 15,
       },
     ];
-    indexer.insertChunks(docId, chunks);
+    await indexer.insertChunks(docId, chunks);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.clearAllMocks();
-    db?.close();
+    await adapter?.close();
   });
 
   describe('Resource handling', () => {
     it('should retrieve chunk by ID', async () => {
       const { resourceHandler } = await import('./mcp-test-helpers.js');
 
-      const chunkRow = db.prepare('SELECT id FROM chunks LIMIT 1').get();
+      // @ts-expect-error - accessing private property for testing
+      const chunkRow = adapter.db.prepare('SELECT id FROM chunks LIMIT 1').get();
       const result = await resourceHandler(`docchunk://${chunkRow.id}`);
 
       expect(result.contents).toBeDefined();
@@ -88,7 +86,8 @@ describe('MCP Server', () => {
     it('should format chunk metadata correctly', async () => {
       const { resourceHandler } = await import('./mcp-test-helpers.js');
 
-      const chunkRow = db
+      // @ts-expect-error - accessing private property for testing
+      const chunkRow = adapter.db
         .prepare('SELECT id FROM chunks WHERE start_line IS NOT NULL LIMIT 1')
         .get();
       const result = await resourceHandler(`docchunk://${chunkRow.id}`);
@@ -236,14 +235,14 @@ describe('MCP Server', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      const docId = indexer.upsertDocument(longContentDoc);
+      const docId = await indexer.upsertDocument(longContentDoc);
       const longChunk: ChunkInput = {
         content: `${'a'.repeat(300)} searchable term`,
         tokenCount: 100,
       };
-      indexer.insertChunks(docId, [longChunk]);
+      await indexer.insertChunks(docId, [longChunk]);
 
       const { searchTool } = await import('./mcp-test-helpers.js');
 
@@ -360,10 +359,10 @@ describe('MCP Server', () => {
         lang: null,
         mtime: null,
         version: null,
-        extra_json: null,
+        extraJson: null,
       };
-      const docId = indexer.upsertDocument(minimalDoc);
-      indexer.insertChunks(docId, [
+      const docId = await indexer.upsertDocument(minimalDoc);
+      await indexer.insertChunks(docId, [
         {
           content: 'minimal searchable content',
         },

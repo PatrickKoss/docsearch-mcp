@@ -10,6 +10,9 @@ export default defineConfig({
     pool: 'forks',
     isolate: true,
     fileParallelism: false,
+    env: {
+      NODE_ENV: 'test',
+    },
   },
   resolve: {
     alias: {

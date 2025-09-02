@@ -10,7 +10,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 
 - **🔍 Hybrid Search**: Combines full-text search (FTS) with vector similarity for optimal results
 - **📁 Multi-Source**: Index both local files and Confluence spaces
-- **🚀 Local-First**: All data stored locally in SQLite with vector extensions
+- **🗄️ Database Flexibility**: Support for SQLite (local-first) and PostgreSQL (scalable)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
 - **⚡ Real-time Updates**: File watching with automatic re-indexing
 - **🎯 Smart Chunking**: Intelligent text chunking for code and documentation
@@ -75,6 +75,18 @@ FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt}
 FILE_EXCLUDE_GLOBS=**/node_modules/**,**/dist/**
 ```
 
+### Database Configuration
+
+```env
+# Use SQLite (default, local-first)
+DB_TYPE=sqlite
+DB_PATH=./data/index.db
+
+# OR use PostgreSQL (for scalability)
+DB_TYPE=postgresql
+POSTGRES_CONNECTION_STRING=postgresql://user:password@localhost:5432/docsearch
+```
+
 ### Confluence (Optional)
 
 ```env
@@ -129,6 +141,8 @@ make format                     # Format code with Prettier
 make typecheck                  # Run TypeScript type checking
 make test                       # Run tests
 make test-run                   # Run tests once
+make test-unit                  # Run unit tests only
+make test-integration           # Run integration tests (requires Docker)
 make check-all                  # Run all quality checks
 
 # Production Commands
@@ -157,12 +171,14 @@ pnpm start:mcp                  # Production server
 # Quality
 pnpm lint                       # Run linter
 pnpm test                       # Run tests
+pnpm test:unit                  # Run unit tests only
+pnpm test:integration           # Run integration tests (requires Docker)
 pnpm build                      # Build project
 ```
 
 ## 🏗️ Architecture
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐
 │   Local Files   │    │   Confluence    │
 └─────────┬───────┘    └─────────┬───────┘
@@ -177,7 +193,9 @@ pnpm build                      # Build project
                   │
                   ▼
     ┌─────────────────────────────────┐
-    │         SQLite + Vectors        │
+    │      Database Layer             │
+    │   SQLite (sqlite-vec) OR        │
+    │   PostgreSQL (pgvector)         │
     │   • Document metadata          │
     │   • Text chunks                │
     │   • Vector embeddings          │
@@ -202,14 +220,18 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 1. Fork the project
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Set up the development environment:
+
    ```bash
    make setup
    ```
+
 4. Make your changes and ensure quality:
+
    ```bash
    make check-all          # Run linter, typecheck, and tests
    make format             # Format your code
    ```
+
 5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 6. Push to the branch (`git push origin feature/AmazingFeature`)
 7. Open a Pull Request
