@@ -22,7 +22,7 @@ describe('Chunker (Working)', () => {
       const code = 'function hello() {\n  return "world";\n}';
       const result = chunkCode(code);
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(code);
+      expect(result[0]!.content).toBe(code);
     });
   });
 
@@ -36,7 +36,7 @@ describe('Chunker (Working)', () => {
       const text = 'Short document text';
       const result = chunkDoc(text);
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(text);
+      expect(result[0]!.content).toBe(text);
     });
 
     it('should split long text', () => {

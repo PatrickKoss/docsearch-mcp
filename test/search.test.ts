@@ -101,8 +101,8 @@ describe('Search', () => {
     ];
 
     for (let i = 0; i < docs.length; i++) {
-      const docId = await indexer.upsertDocument(docs[i]);
-      await indexer.insertChunks(docId, chunks[i]);
+      const docId = await indexer.upsertDocument(docs[i]!);
+      await indexer.insertChunks(docId, chunks[i]!);
     }
   });
 
@@ -212,8 +212,8 @@ describe('Search', () => {
 
       if (results.length > 0) {
         const result = results[0];
-        expect(result.snippet).toBeTruthy();
-        expect(result.snippet.length).toBeLessThanOrEqual(400);
+        expect(result!.snippet).toBeTruthy();
+        expect(result!.snippet.length).toBeLessThanOrEqual(400);
       }
     });
 
@@ -226,9 +226,9 @@ describe('Search', () => {
         expect(result).toHaveProperty('start_line');
         expect(result).toHaveProperty('end_line');
 
-        if (result.start_line !== null) {
-          expect(typeof result.start_line).toBe('number');
-          expect(result.start_line).toBeGreaterThan(0);
+        if (result!.start_line !== null) {
+          expect(typeof result!.start_line).toBe('number');
+          expect(result!.start_line).toBeGreaterThan(0);
         }
       }
     });

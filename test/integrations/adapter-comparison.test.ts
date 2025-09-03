@@ -109,7 +109,7 @@ describe('Database Adapter Comparison Tests', () => {
       expect(docId).toBeGreaterThan(0);
 
       // Retrieve document
-      const retrieved = await sqliteAdapter.getDocument(testDoc.uri);
+      const retrieved = await sqliteAdapter.getDocument(testDoc.uri as string);
       expect(retrieved).not.toBeNull();
       if (retrieved) {
         expect(retrieved.hash).toBe(testDoc.hash);
@@ -138,7 +138,7 @@ describe('Database Adapter Comparison Tests', () => {
       );
       expect(relevantChunks.length).toBeGreaterThan(0);
 
-      const firstChunk = relevantChunks[0];
+      const firstChunk = relevantChunks[0]!;
       const chunkContent = await sqliteAdapter.getChunkContent(firstChunk.id);
       expect(chunkContent).not.toBeNull();
       if (chunkContent) {
@@ -155,11 +155,11 @@ describe('Database Adapter Comparison Tests', () => {
 
       const embeddings = relevantChunks.map((chunk, index) => ({
         id: chunk.id,
-        embedding: testEmbeddings[index] || testEmbeddings[0],
+        embedding: testEmbeddings[index] || testEmbeddings[0]!,
       }));
 
       // Insert embeddings
-      await sqliteAdapter.insertEmbeddings(embeddings);
+      await sqliteAdapter.insertEmbeddings(embeddings as { id: number; embedding: number[] }[]);
 
       // Verify no more chunks need embeddings for our test chunks
       const remainingChunks = await sqliteAdapter.getChunksToEmbed();
@@ -173,13 +173,13 @@ describe('Database Adapter Comparison Tests', () => {
       // Test keyword search
       const keywordResults = await sqliteAdapter.keywordSearch('machine learning', 5, {});
       expect(keywordResults.length).toBeGreaterThan(0);
-      expect(keywordResults[0].snippet).toMatch(/machine learning/i);
+      expect(keywordResults[0]!.snippet).toMatch(/machine learning/i);
 
       // Test vector search
       const queryEmbedding = [0.15, 0.25, 0.35, 0.45, 0.55];
       const vectorResults = await sqliteAdapter.vectorSearch(queryEmbedding, 5, {});
       expect(vectorResults.length).toBeGreaterThan(0);
-      expect(vectorResults[0].score).toBeGreaterThan(0);
+      expect(vectorResults[0]!.score).toBeGreaterThan(0);
 
       // Test filtered search
       const filteredResults = await sqliteAdapter.keywordSearch('database', 5, {
@@ -213,7 +213,7 @@ describe('Database Adapter Comparison Tests', () => {
       expect(docId).toBeGreaterThan(0);
 
       // Retrieve document
-      const retrieved = await postgresAdapter.getDocument(testDoc.uri);
+      const retrieved = await postgresAdapter.getDocument(testDoc.uri as string);
       expect(retrieved).not.toBeNull();
       if (retrieved) {
         expect(retrieved.hash).toBe(testDoc.hash);
@@ -242,7 +242,7 @@ describe('Database Adapter Comparison Tests', () => {
       );
       expect(relevantChunks.length).toBeGreaterThan(0);
 
-      const firstChunk = relevantChunks[0];
+      const firstChunk = relevantChunks[0]!;
       const chunkContent = await postgresAdapter.getChunkContent(firstChunk.id);
       expect(chunkContent).not.toBeNull();
       if (chunkContent) {
@@ -259,11 +259,11 @@ describe('Database Adapter Comparison Tests', () => {
 
       const embeddings = relevantChunks.map((chunk, index) => ({
         id: chunk.id,
-        embedding: testEmbeddings[index] || testEmbeddings[0],
+        embedding: testEmbeddings[index] || testEmbeddings[0]!,
       }));
 
       // Insert embeddings
-      await postgresAdapter.insertEmbeddings(embeddings);
+      await postgresAdapter.insertEmbeddings(embeddings as { id: number; embedding: number[] }[]);
 
       // Verify no more chunks need embeddings for our test chunks
       const remainingChunks = await postgresAdapter.getChunksToEmbed();
@@ -277,13 +277,13 @@ describe('Database Adapter Comparison Tests', () => {
       // Test keyword search
       const keywordResults = await postgresAdapter.keywordSearch('machine learning', 5, {});
       expect(keywordResults.length).toBeGreaterThan(0);
-      expect(keywordResults[0].snippet).toMatch(/machine learning/i);
+      expect(keywordResults[0]!.snippet).toMatch(/machine learning/i);
 
       // Test vector search
       const queryEmbedding = [0.15, 0.25, 0.35, 0.45, 0.55];
       const vectorResults = await postgresAdapter.vectorSearch(queryEmbedding, 5, {});
       expect(vectorResults.length).toBeGreaterThan(0);
-      expect(vectorResults[0].score).toBeGreaterThan(0);
+      expect(vectorResults[0]!.score).toBeGreaterThan(0);
 
       // Test filtered search
       const filteredResults = await postgresAdapter.keywordSearch('database', 5, {
@@ -330,14 +330,14 @@ describe('Database Adapter Comparison Tests', () => {
         .filter((c) => testChunks.some((tc) => tc.content === c.content))
         .map((chunk, index) => ({
           id: chunk.id,
-          embedding: testEmbeddings[index % testEmbeddings.length],
+          embedding: testEmbeddings[index % testEmbeddings.length]!,
         }));
 
       const postgresEmbeddings = postgresChunks
         .filter((c) => testChunks.some((tc) => tc.content === c.content))
         .map((chunk, index) => ({
           id: chunk.id,
-          embedding: testEmbeddings[index % testEmbeddings.length],
+          embedding: testEmbeddings[index % testEmbeddings.length]!,
         }));
 
       await sqliteAdapter.insertEmbeddings(sqliteEmbeddings);

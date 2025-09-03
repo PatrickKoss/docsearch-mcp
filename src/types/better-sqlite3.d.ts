@@ -3,7 +3,7 @@ declare module 'better-sqlite3' {
     interface Database {
       prepare(source: string): Statement;
       exec(source: string): void;
-      pragma(source: string): void;
+      pragma(source: string, options?: { simple?: boolean }): any;
       transaction(fn: (...args: any[]) => any): (...args: any[]) => any;
       close(): void;
     }

@@ -12,10 +12,10 @@ describe('Chunker', () => {
     it('should handle single line', () => {
       const result = chunkCode('const x = 1;');
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe('const x = 1;');
-      expect(result[0].startLine).toBe(1);
-      expect(result[0].endLine).toBe(1);
-      expect(result[0].tokenCount).toBeGreaterThan(0);
+      expect(result[0]!.content).toBe('const x = 1;');
+      expect(result[0]!.startLine).toBe(1);
+      expect(result[0]!.endLine).toBe(1);
+      expect(result[0]!.tokenCount).toBeGreaterThan(0);
     });
 
     it('should chunk small code into single chunk', () => {
@@ -25,9 +25,9 @@ describe('Chunker', () => {
 }`;
       const result = chunkCode(code);
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(code);
-      expect(result[0].startLine).toBe(1);
-      expect(result[0].endLine).toBe(4);
+      expect(result[0]!.content).toBe(code);
+      expect(result[0]!.startLine).toBe(1);
+      expect(result[0]!.endLine).toBe(4);
     });
 
     it('should split large code at natural boundaries', () => {
@@ -47,8 +47,8 @@ describe('Chunker', () => {
       expect(result.length).toBeGreaterThan(0);
 
       const firstChunk = result[0];
-      expect(firstChunk.content).toContain('function first()');
-      expect(firstChunk.startLine).toBe(1);
+      expect(firstChunk!.content).toContain('function first()');
+      expect(firstChunk!.startLine).toBe(1);
     });
 
     it('should respect maximum character limit', () => {
@@ -56,7 +56,7 @@ describe('Chunker', () => {
       const result = chunkCode(largeLine);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content.length).toBeLessThanOrEqual(1500);
+      expect(result[0]!.content.length).toBeLessThanOrEqual(1500);
     });
 
     it('should handle mixed line endings', () => {
@@ -64,8 +64,8 @@ describe('Chunker', () => {
       const result = chunkCode(code);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content).toContain('line1');
-      expect(result[0].content).toContain('line4');
+      expect(result[0]!.content).toContain('line1');
+      expect(result[0]!.content).toContain('line4');
     });
 
     it('should prefer to break at closing braces', () => {
@@ -80,7 +80,7 @@ function another() {
       const result = chunkCode(code);
 
       if (result.length > 1) {
-        expect(result[0].content).toMatch(/\}\s*$/);
+        expect(result[0]!.content).toMatch(/\}\s*$/);
       }
     });
 
@@ -94,7 +94,7 @@ line6`;
 
       const result = chunkCode(code);
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(code);
+      expect(result[0]!.content).toBe(code);
     });
   });
 
@@ -109,10 +109,10 @@ line6`;
       const result = chunkDoc(text);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(text);
-      expect(result[0].tokenCount).toBeGreaterThan(0);
-      expect(result[0].startLine).toBeUndefined();
-      expect(result[0].endLine).toBeUndefined();
+      expect(result[0]!.content).toBe(text);
+      expect(result[0]!.tokenCount).toBeGreaterThan(0);
+      expect(result[0]!.startLine).toBeUndefined();
+      expect(result[0]!.endLine).toBeUndefined();
     });
 
     it('should split long text into multiple chunks with overlap', () => {
@@ -136,11 +136,11 @@ line6`;
       const firstChunk = result[0];
       const secondChunk = result[1];
 
-      expect(firstChunk.content.length).toBe(1200);
-      expect(secondChunk.content.length).toBe(250); // remaining 100 + 150 overlap
+      expect(firstChunk!.content.length).toBe(1200);
+      expect(secondChunk!.content.length).toBe(250); // remaining 100 + 150 overlap
 
-      const overlapStart = firstChunk.content.slice(-150);
-      const overlapEnd = secondChunk.content.slice(0, 150);
+      const overlapStart = firstChunk!.content.slice(-150);
+      const overlapEnd = secondChunk!.content.slice(0, 150);
       expect(overlapStart).toBe(overlapEnd);
     });
 
@@ -149,7 +149,7 @@ line6`;
       const result = chunkDoc(text);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(text);
+      expect(result[0]!.content).toBe(text);
     });
 
     it('should handle text slightly over boundary', () => {
@@ -157,15 +157,15 @@ line6`;
       const result = chunkDoc(text);
 
       expect(result).toHaveLength(2);
-      expect(result[0].content.length).toBe(1200);
-      expect(result[1].content.length).toBe(151); // 1 remaining + 150 overlap
+      expect(result[0]!.content.length).toBe(1200);
+      expect(result[1]!.content.length).toBe(151); // 1 remaining + 150 overlap
     });
   });
 
   describe('Token counting', () => {
     it('should approximate tokens for simple text', () => {
       const chunk = chunkDoc('hello world test')[0];
-      expect(chunk.tokenCount).toBe(Math.round(3 * 1.05 + 5)); // 3 words
+      expect(chunk!.tokenCount).toBe(Math.round(3 * 1.05 + 5)); // 3 words
     });
 
     it('should handle empty token counting', () => {
@@ -177,7 +177,7 @@ line6`;
       const code = 'function test() { return true; }';
       const result = chunkCode(code);
 
-      expect(result[0].tokenCount).toBeGreaterThan(5);
+      expect(result[0]!.tokenCount).toBeGreaterThan(5);
     });
   });
 
@@ -187,7 +187,7 @@ line6`;
       const result = chunkCode(longLine);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(longLine);
+      expect(result[0]!.content).toBe(longLine);
     });
 
     it('should handle text with only whitespace', () => {
@@ -202,7 +202,7 @@ line6`;
       const result = chunkCode(mixed);
 
       expect(result).toHaveLength(1);
-      expect(result[0].content).toBe(mixed);
+      expect(result[0]!.content).toBe(mixed);
     });
   });
 });

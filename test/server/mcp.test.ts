@@ -70,8 +70,8 @@ describe('MCP Server', () => {
 
       expect(result.contents).toBeDefined();
       expect(result.contents).toHaveLength(1);
-      expect(result.contents[0].text).toContain('Sample TypeScript File');
-      expect(result.contents[0].text).toContain('function searchFiles');
+      expect(result.contents[0]!.text).toContain('Sample TypeScript File');
+      expect(result.contents[0]!.text).toContain('function searchFiles');
     });
 
     it('should handle non-existent chunk ID', async () => {
@@ -80,7 +80,7 @@ describe('MCP Server', () => {
       const result = await resourceHandler('docchunk://999999');
 
       expect(result.contents).toHaveLength(1);
-      expect(result.contents[0].text).toBe('Not found');
+      expect(result.contents[0]!.text).toBe('Not found');
     });
 
     it('should format chunk metadata correctly', async () => {
@@ -92,7 +92,7 @@ describe('MCP Server', () => {
         .get();
       const result = await resourceHandler(`docchunk://${chunkRow.id}`);
 
-      const content = result.contents[0].text;
+      const content = result.contents[0]!.text;
       expect(content).toContain('# Sample TypeScript File');
       expect(content).toContain('• src/sample.ts');
       expect(content).toContain('(lines 1-3)');
@@ -110,13 +110,13 @@ describe('MCP Server', () => {
       });
 
       expect(result.content).toBeDefined();
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('Found');
-      expect(result.content[0].text).toContain('searchFiles');
+      expect(result.content[0]!.type).toBe('text');
+      expect((result.content[0] as any).text).toContain('Found');
+      expect((result.content[0] as any).text).toContain('searchFiles');
 
       const resourceLinks = result.content.filter((c) => c.type === 'resource_link');
       expect(resourceLinks.length).toBeGreaterThan(0);
-      expect(resourceLinks[0].uri).toMatch(/^docchunk:\/\/\d+$/);
+      expect((resourceLinks[0] as any).uri).toMatch(/^docchunk:\/\/\d+$/);
     });
 
     it('should perform vector search', async () => {
@@ -128,8 +128,8 @@ describe('MCP Server', () => {
       });
 
       expect(result.content).toBeDefined();
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('Found');
+      expect(result.content[0]!.type).toBe('text');
+      expect((result.content[0] as any).text).toContain('Found');
     });
 
     it('should perform hybrid search by default', async () => {
@@ -181,7 +181,7 @@ describe('MCP Server', () => {
       expect(result.content).toBeDefined();
       const resourceLinks = result.content.filter((c) => c.type === 'resource_link');
       if (resourceLinks.length > 0) {
-        expect(resourceLinks[0].description).toContain('test-repo');
+        expect((resourceLinks[0] as any).description).toContain('test-repo');
       }
     });
 
@@ -196,7 +196,7 @@ describe('MCP Server', () => {
       expect(result.content).toBeDefined();
       const resourceLinks = result.content.filter((c) => c.type === 'resource_link');
       if (resourceLinks.length > 0) {
-        expect(resourceLinks[0].description).toContain('src/sample.ts');
+        expect((resourceLinks[0] as any).description).toContain('src/sample.ts');
       }
     });
 
@@ -208,7 +208,7 @@ describe('MCP Server', () => {
       });
 
       expect(result.content).toBeDefined();
-      expect(result.content[0].text).toContain('Found 0 results');
+      expect((result.content[0] as any).text).toContain('Found 0 results');
     });
 
     it('should format snippets correctly', async () => {
@@ -219,9 +219,11 @@ describe('MCP Server', () => {
         mode: 'keyword',
       });
 
-      const textItems = result.content.filter((c) => c.type === 'text' && c.text.startsWith('—'));
+      const textItems = result.content.filter(
+        (c) => c.type === 'text' && (c as any).text.startsWith('—'),
+      );
       expect(textItems.length).toBeGreaterThan(0);
-      expect(textItems[0].text).toContain('function searchFiles');
+      expect((textItems[0] as any).text).toContain('function searchFiles');
     });
 
     it('should truncate long snippets with ellipsis', async () => {
@@ -251,12 +253,14 @@ describe('MCP Server', () => {
         mode: 'keyword',
       });
 
-      const textItems = result.content.filter((c) => c.type === 'text' && c.text.startsWith('—'));
-      const longSnippet = textItems.find((item) => item.text.includes('searchable'));
+      const textItems = result.content.filter(
+        (c) => c.type === 'text' && (c as any).text.startsWith('—'),
+      );
+      const longSnippet = textItems.find((item) => (item as any).text.includes('searchable'));
 
       if (longSnippet) {
-        expect(longSnippet.text).toMatch(/…$/);
-        expect(longSnippet.text.length).toBeLessThanOrEqual(250); // 240 + "— " + "…"
+        expect((longSnippet as any).text).toMatch(/…$/);
+        expect((longSnippet as any).text.length).toBeLessThanOrEqual(250); // 240 + "— " + "…"
       }
     });
 
@@ -269,7 +273,7 @@ describe('MCP Server', () => {
       });
 
       const resourceLinks = result.content.filter((c) => c.type === 'resource_link');
-      const uniqueUris = new Set(resourceLinks.map((link) => link.uri));
+      const uniqueUris = new Set(resourceLinks.map((link) => (link as any).uri));
 
       expect(uniqueUris.size).toBe(resourceLinks.length);
     });
@@ -343,9 +347,9 @@ describe('MCP Server', () => {
       expect(resourceLinks.length).toBeGreaterThan(0);
 
       const link = resourceLinks[0];
-      expect(link.description).toContain('file');
-      expect(link.description).toContain('test-repo');
-      expect(link.description).toContain('src/sample.ts');
+      expect((link as any).description).toContain('file');
+      expect((link as any).description).toContain('test-repo');
+      expect((link as any).description).toContain('src/sample.ts');
     });
 
     it('should handle missing metadata gracefully', async () => {
@@ -376,10 +380,12 @@ describe('MCP Server', () => {
       });
 
       const resourceLinks = result.content.filter((c) => c.type === 'resource_link');
-      const minimalLink = resourceLinks.find((link) => link.name.includes('confluence://minimal'));
+      const minimalLink = resourceLinks.find((link) =>
+        (link as any).name.includes('confluence://minimal'),
+      );
 
       expect(minimalLink).toBeTruthy();
-      expect(minimalLink.description).toBe('confluence');
+      expect((minimalLink as any).description).toBe('confluence');
     });
   });
 });

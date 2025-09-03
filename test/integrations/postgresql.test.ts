@@ -56,7 +56,7 @@ describe('PostgreSQL Integration Tests', () => {
       expect(docId).toBeGreaterThan(0);
 
       // Retrieve document
-      const retrieved = await adapter.getDocument(doc.uri);
+      const retrieved = await adapter.getDocument(doc.uri as string);
       expect(retrieved).not.toBeNull();
       if (retrieved) {
         expect(retrieved.hash).toBe(doc.hash);
@@ -71,7 +71,7 @@ describe('PostgreSQL Integration Tests', () => {
       const docId3 = await adapter.upsertDocument(updatedDoc);
       expect(docId3).toBe(docId);
 
-      const retrievedUpdated = await adapter.getDocument(doc.uri);
+      const retrievedUpdated = await adapter.getDocument(doc.uri as string);
       if (retrievedUpdated) {
         expect(retrievedUpdated.hash).toBe('def456');
       }
@@ -139,10 +139,10 @@ describe('PostgreSQL Integration Tests', () => {
       const firstChunk = chunksToEmbed[0];
       expect(firstChunk).toBeDefined();
 
-      const chunkContent = await adapter.getChunkContent(firstChunk.id);
+      const chunkContent = await adapter.getChunkContent(firstChunk!.id);
       expect(chunkContent).not.toBeNull();
       if (chunkContent) {
-        expect(chunkContent.content).toBe(firstChunk.content);
+        expect(chunkContent.content).toBe(firstChunk!.content);
         expect(chunkContent.source).toBe('file');
         expect(chunkContent.title).toBe('Chunks Test Document');
         expect(chunkContent.path).toBe('chunks-test.md');
@@ -182,7 +182,7 @@ describe('PostgreSQL Integration Tests', () => {
       const searchResults = await adapter.vectorSearch(queryEmbedding, 5, {});
 
       expect(searchResults.length).toBeGreaterThan(0);
-      expect(searchResults[0].score).toBeGreaterThan(0); // Distance score
+      expect(searchResults[0]!.score).toBeGreaterThan(0); // Distance score
 
       // Verify at least one result is from our test chunks
       const hasTestChunk = searchResults.some((result) =>
@@ -232,9 +232,9 @@ describe('PostgreSQL Integration Tests', () => {
       const results = await adapter.keywordSearch('databases', 5, {});
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].snippet).toContain('databases');
-      expect(results[0].score).toBeGreaterThan(0); // ts_rank score
-      expect(results[0].source).toBe('file');
+      expect(results[0]!.snippet).toContain('databases');
+      expect(results[0]!.score).toBeGreaterThan(0); // ts_rank score
+      expect(results[0]!.source).toBe('file');
     });
 
     it('should support multi-word keyword search', async () => {

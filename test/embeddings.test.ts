@@ -87,14 +87,14 @@ describe('Embeddings', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0]).toBeInstanceOf(Float32Array);
-      expect(Array.from(result[0])).toEqual(
+      expect(Array.from(result[0]!)).toEqual(
         expect.arrayContaining([
           expect.closeTo(0.1, 5),
           expect.closeTo(0.2, 5),
           expect.closeTo(0.3, 5),
         ]),
       );
-      expect(Array.from(result[1])).toEqual(
+      expect(Array.from(result[1]!)).toEqual(
         expect.arrayContaining([
           expect.closeTo(0.4, 5),
           expect.closeTo(0.5, 5),
@@ -185,14 +185,14 @@ describe('Embeddings', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0]).toBeInstanceOf(Float32Array);
-      expect(Array.from(result[0])).toEqual(
+      expect(Array.from(result[0]!)).toEqual(
         expect.arrayContaining([
           expect.closeTo(0.1, 5),
           expect.closeTo(0.2, 5),
           expect.closeTo(0.3, 5),
         ]),
       );
-      expect(Array.from(result[1])).toEqual(
+      expect(Array.from(result[1]!)).toEqual(
         expect.arrayContaining([
           expect.closeTo(0.4, 5),
           expect.closeTo(0.5, 5),

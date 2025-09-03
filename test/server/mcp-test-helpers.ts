@@ -79,11 +79,11 @@ export async function searchTool(input: SearchToolInput) {
   try {
     const searchParams: SearchParams = {
       query: validatedInput.query,
-      topK: validatedInput.topK,
-      source: validatedInput.source,
-      repo: validatedInput.repo,
-      pathPrefix: validatedInput.pathPrefix,
-      mode: validatedInput.mode,
+      ...(validatedInput.topK !== undefined && { topK: validatedInput.topK }),
+      ...(validatedInput.source !== undefined && { source: validatedInput.source }),
+      ...(validatedInput.repo !== undefined && { repo: validatedInput.repo }),
+      ...(validatedInput.pathPrefix !== undefined && { pathPrefix: validatedInput.pathPrefix }),
+      ...(validatedInput.mode !== undefined && { mode: validatedInput.mode }),
     };
 
     const results: AdapterSearchResult[] = await performSearch(adapter, searchParams);

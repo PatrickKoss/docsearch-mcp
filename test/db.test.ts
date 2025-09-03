@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { testDbPath } from './setup.js';
 import { openDb } from '../src/ingest/db.js';

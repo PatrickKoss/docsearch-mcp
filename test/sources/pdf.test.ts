@@ -233,7 +233,7 @@ And more formatting    issues.`;
       const content = firstChunk?.content;
       expect(content).not.toMatch(/ {2} +/); // No triple spaces
       expect(content).not.toMatch(/\n{3,}/); // No more than double line breaks
-      expect(content.startsWith('This has excessive spaces')).toBe(true);
+      expect(content!.startsWith('This has excessive spaces')).toBe(true);
     });
 
     it('should normalize different line ending types', () => {
