@@ -33,11 +33,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev:ingest": "tsx src/ingest/cli.ts",
     "dev:mcp": "tsx src/server/mcp.ts",
     "dev:cli": "tsx src/cli/main.ts",
     "start:mcp": "node dist/src/server/mcp.js",
-    "start:ingest": "node dist/src/ingest/cli.js",
     "start:cli": "node dist/src/cli/main.js",
     "test": "vitest",
     "test:run": "vitest run",

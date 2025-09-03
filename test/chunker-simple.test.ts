@@ -6,14 +6,14 @@ describe('Chunker Simple Test', () => {
   });
 
   it('should import chunker functions', async () => {
-    const { chunkCode, chunkDoc } = await import('../src/ingest/chunker.js');
+    const { chunkCode, chunkDoc } = await import('../src/infrastructure/legacy/chunker.js');
 
     expect(typeof chunkCode).toBe('function');
     expect(typeof chunkDoc).toBe('function');
   });
 
   it('should chunk empty string', async () => {
-    const { chunkCode } = await import('../src/ingest/chunker.js');
+    const { chunkCode } = await import('../src/infrastructure/legacy/chunker.js');
 
     const result = chunkCode('');
     expect(result).toEqual([]);

@@ -1,7 +1,7 @@
-import { CONFIG } from '../../infrastructure/config/legacy-config.js';
+import { CONFIG } from '../../shared/config/legacy-config.js';
 
-import type { EmbeddingProvider } from '../../infrastructure/factories/embedding-factory.js';
 import type { ApplicationConfig } from '../config/application-config.js';
+import type { EmbeddingProvider } from '../factories/embedding-factory.js';
 
 export class ConfigAdapter {
   static fromEnvironment(): ApplicationConfig {

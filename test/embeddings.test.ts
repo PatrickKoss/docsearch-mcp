@@ -18,7 +18,7 @@ describe('Embeddings', () => {
 
   describe('OpenAIEmbedder', () => {
     beforeEach(() => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -31,13 +31,13 @@ describe('Embeddings', () => {
     });
 
     it('should initialize with correct configuration', async () => {
-      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { OpenAIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new OpenAIEmbedder();
       expect(embedder.dim).toBe(1536);
     });
 
     it('should throw error if API key is missing', async () => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: '',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -48,19 +48,19 @@ describe('Embeddings', () => {
         },
       }));
 
-      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { OpenAIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       expect(() => new OpenAIEmbedder()).toThrow('OPENAI_API_KEY missing');
     });
 
     it('should return empty array for empty input', async () => {
-      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { OpenAIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new OpenAIEmbedder();
       const result = await embedder.embed([]);
       expect(result).toEqual([]);
     });
 
     it('should make correct API call and return embeddings', async () => {
-      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { OpenAIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new OpenAIEmbedder();
 
       const mockResponse = {
@@ -104,7 +104,7 @@ describe('Embeddings', () => {
     });
 
     it('should handle API errors', async () => {
-      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { OpenAIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new OpenAIEmbedder();
 
       const mockResponse = {
@@ -122,7 +122,7 @@ describe('Embeddings', () => {
 
   describe('TEIEmbedder', () => {
     beforeEach(() => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -135,13 +135,13 @@ describe('Embeddings', () => {
     });
 
     it('should initialize with correct configuration', async () => {
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new TEIEmbedder();
       expect(embedder.dim).toBe(1536);
     });
 
     it('should throw error if endpoint is missing', async () => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -152,19 +152,19 @@ describe('Embeddings', () => {
         },
       }));
 
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       expect(() => new TEIEmbedder()).toThrow('TEI_ENDPOINT missing');
     });
 
     it('should return empty array for empty input', async () => {
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new TEIEmbedder();
       const result = await embedder.embed([]);
       expect(result).toEqual([]);
     });
 
     it('should make correct API call and return embeddings', async () => {
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new TEIEmbedder();
 
       const mockResponse = {
@@ -202,7 +202,7 @@ describe('Embeddings', () => {
     });
 
     it('should handle API errors', async () => {
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new TEIEmbedder();
 
       const mockResponse = {
@@ -218,7 +218,7 @@ describe('Embeddings', () => {
     });
 
     it('should strip trailing slash from endpoint', async () => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -229,7 +229,7 @@ describe('Embeddings', () => {
         },
       }));
 
-      const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { TEIEmbedder } = await import('../src/infrastructure/legacy/embeddings.js');
       const embedder = new TEIEmbedder();
       expect((embedder as any).endpoint).toBe('http://localhost:8080');
     });
@@ -237,7 +237,7 @@ describe('Embeddings', () => {
 
   describe('getEmbedder', () => {
     it('should return OpenAIEmbedder by default', async () => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -248,13 +248,15 @@ describe('Embeddings', () => {
         },
       }));
 
-      const { getEmbedder, OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { getEmbedder, OpenAIEmbedder } = await import(
+        '../src/infrastructure/legacy/embeddings.js'
+      );
       const embedder = getEmbedder();
       expect(embedder).toBeInstanceOf(OpenAIEmbedder);
     });
 
     it('should return TEIEmbedder when configured', async () => {
-      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
+      vi.doMock('../src/shared/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -265,7 +267,9 @@ describe('Embeddings', () => {
         },
       }));
 
-      const { getEmbedder, TEIEmbedder } = await import('../src/ingest/embeddings.js');
+      const { getEmbedder, TEIEmbedder } = await import(
+        '../src/infrastructure/legacy/embeddings.js'
+      );
       const embedder = getEmbedder();
       expect(embedder).toBeInstanceOf(TEIEmbedder);
     });

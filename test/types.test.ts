@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
+import type { SourceType } from '../src/domain/entities/document.js';
 import type {
-  SourceType,
   DocumentRow,
   ChunkRow,
   ChunkVecMapRow,
@@ -11,7 +11,7 @@ import type {
   ChunkInput,
   DocumentInput,
   ChunkWithMetadata,
-} from '../src/infrastructure/database/legacy-types.js';
+} from '../src/infrastructure/legacy/types.js';
 
 describe('Type definitions', () => {
   describe('SourceType', () => {

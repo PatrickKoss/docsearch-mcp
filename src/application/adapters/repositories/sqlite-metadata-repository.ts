@@ -1,4 +1,4 @@
-import type { MetadataRepository } from '../../domain/ports/metadata-repository.js';
+import type { MetadataRepository } from '../../../domain/ports/metadata-repository.js';
 import type Database from 'better-sqlite3';
 
 export class SqliteMetadataRepository implements MetadataRepository {
@@ -19,7 +19,7 @@ export class SqliteMetadataRepository implements MetadataRepository {
 
   async getValue(key: string): Promise<string | null> {
     const result = this.getValueStmt.get(key) as { value: string } | undefined;
-    return result?.value || null;
+    return result?.value ?? null; // Use nullish coalescing to preserve empty strings
   }
 
   async setValue(key: string, value: string): Promise<void> {

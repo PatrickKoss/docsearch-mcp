@@ -1,7 +1,7 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { PostgresAdapter } from '../../src/ingest/adapters/postgresql.js';
+import { PostgresAdapter } from '../../src/application/adapters/repositories/postgresql-repository.js';
 
 describe('Simple PostgreSQL Integration Test', () => {
   let container: any;

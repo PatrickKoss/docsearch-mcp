@@ -4,11 +4,12 @@ import { toSql } from 'pgvector/pg';
 import type {
   DatabaseAdapter,
   ChunkToEmbed,
-  SearchResult,
-  ChunkContent,
+  LegacySearchResult as SearchResult,
+  LegacyChunkContent as ChunkContent,
   SearchFilters,
-} from './types.js';
-import type { DocumentInput, ChunkInput } from '../../infrastructure/database/legacy-types.js';
+  DocumentInput,
+  ChunkInput,
+} from '../../../infrastructure/legacy/types.js';
 
 export interface PostgresConfig {
   readonly connectionString: string;

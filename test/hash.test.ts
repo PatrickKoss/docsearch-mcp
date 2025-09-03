@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { sha256 } from '../src/ingest/hash.js';
+import { sha256 } from '../src/infrastructure/legacy/hash.js';
 
 describe('Hash utility', () => {
   describe('sha256', () => {

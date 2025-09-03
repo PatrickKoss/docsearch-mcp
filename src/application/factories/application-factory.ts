@@ -1,7 +1,7 @@
+import { DatabaseFactory } from './database-factory.js';
+import { EmbeddingFactory } from './embedding-factory.js';
 import { IndexingService } from '../../domain/services/indexing-service.js';
 import { SearchService } from '../../domain/services/search-service.js';
-import { DatabaseFactory } from '../../infrastructure/factories/database-factory.js';
-import { EmbeddingFactory } from '../../infrastructure/factories/embedding-factory.js';
 import { DocumentService } from '../services/document-service.js';
 import { GenerateEmbeddingsUseCase } from '../use-cases/generate-embeddings-use-case.js';
 import { GetChunkContentUseCase } from '../use-cases/get-chunk-content-use-case.js';

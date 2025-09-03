@@ -8,8 +8,8 @@ import type {
   DocumentEntity,
   ChunkEntity,
   EmbeddingEntity,
-} from '../../domain/entities/document.js';
-import type { DocumentRepository } from '../../domain/ports/document-repository.js';
+} from '../../../domain/entities/document.js';
+import type { DocumentRepository } from '../../../domain/ports/document-repository.js';
 
 export interface SqliteDatabaseConfig {
   readonly path: string;

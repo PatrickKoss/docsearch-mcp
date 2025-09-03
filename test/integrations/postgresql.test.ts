@@ -2,9 +2,9 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client } from 'pg';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { PostgresAdapter } from '../../src/ingest/adapters/postgresql.js';
+import { PostgresAdapter } from '../../src/application/adapters/repositories/postgresql-repository.js';
 
-import type { DocumentInput, ChunkInput } from '../../src/infrastructure/database/legacy-types.js';
+import type { DocumentInput, ChunkInput } from '../../src/infrastructure/legacy/types.js';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 describe('PostgreSQL Integration Tests', () => {
@@ -156,14 +156,42 @@ describe('PostgreSQL Integration Tests', () => {
   });
 
   describe('Vector Operations', () => {
-    let testChunks: Array<{ id: number; content: string }>;
-
-    beforeAll(async () => {
-      testChunks = await adapter.getChunksToEmbed();
-      expect(testChunks.length).toBeGreaterThan(0);
-    });
-
     it('should insert and query vector embeddings', async () => {
+      // First, create a document and insert chunks for this test
+      const doc: DocumentInput = {
+        source: 'file',
+        uri: 'file:///vector-test.md',
+        repo: 'vector-repo',
+        path: 'vector-test.md',
+        title: 'Vector Test Document',
+        lang: 'md',
+        hash: 'vector123',
+        mtime: Date.now(),
+        version: '1.0',
+        extraJson: null,
+      };
+      const docId = await adapter.upsertDocument(doc);
+
+      const chunks: ChunkInput[] = [
+        {
+          content: 'This is the first chunk about databases and storage systems.',
+          startLine: 1,
+          endLine: 3,
+          tokenCount: 12,
+        },
+        {
+          content: 'This is the second chunk covering search algorithms and indexing.',
+          startLine: 4,
+          endLine: 6,
+          tokenCount: 11,
+        },
+      ];
+
+      await adapter.insertChunks(docId, chunks);
+
+      // Get chunks that need embeddings
+      const testChunks = await adapter.getChunksToEmbed();
+      expect(testChunks.length).toBeGreaterThan(0);
       // Create mock embeddings (4 dimensions for testing)
       const embeddings = testChunks.map((chunk, index) => ({
         id: chunk.id,
@@ -206,17 +234,57 @@ describe('PostgreSQL Integration Tests', () => {
     });
 
     it('should support filtered vector search', async () => {
+      // Create a document and chunks for this test
+      const doc: DocumentInput = {
+        source: 'file',
+        uri: 'file:///filter-test.md',
+        repo: 'filter-repo',
+        path: 'filter-test.md',
+        title: 'Filter Test Document',
+        lang: 'md',
+        hash: 'filter123',
+        mtime: Date.now(),
+        version: '1.0',
+        extraJson: null,
+      };
+      const docId = await adapter.upsertDocument(doc);
+
+      const chunks: ChunkInput[] = [
+        {
+          content: 'This chunk is about machine learning and neural networks.',
+          startLine: 1,
+          endLine: 2,
+          tokenCount: 10,
+        },
+        {
+          content: 'This chunk covers data science and analytics.',
+          startLine: 3,
+          endLine: 4,
+          tokenCount: 8,
+        },
+      ];
+
+      await adapter.insertChunks(docId, chunks);
+
+      // Get chunks and add embeddings
+      const testChunks = await adapter.getChunksToEmbed();
+      const embeddings = testChunks.map((chunk, index) => ({
+        id: chunk.id,
+        embedding: [0.2 + index * 0.1, 0.3 + index * 0.1, 0.4 + index * 0.1, 0.5 + index * 0.1],
+      }));
+      await adapter.insertEmbeddings(embeddings);
+
       const queryEmbedding = [0.25, 0.35, 0.45, 0.55];
 
       // Search with source filter
       const filteredResults = await adapter.vectorSearch(queryEmbedding, 5, {
         source: 'file',
-        repo: 'test-repo',
+        repo: 'filter-repo',
       });
 
       expect(filteredResults.length).toBeGreaterThan(0);
       expect(filteredResults.every((r) => r.source === 'file')).toBe(true);
-      expect(filteredResults.every((r) => r.repo === 'test-repo')).toBe(true);
+      expect(filteredResults.every((r) => r.repo === 'filter-repo')).toBe(true);
 
       // Search with non-existent filter should return empty
       const noResults = await adapter.vectorSearch(queryEmbedding, 5, {

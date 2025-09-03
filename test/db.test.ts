@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { testDbPath } from './setup.js';
-import { openDb } from '../src/ingest/db.js';
+import { openDb } from '../src/infrastructure/legacy/db.js';
 
 describe('Database', () => {
   let db: ReturnType<typeof openDb>;
@@ -132,7 +132,7 @@ describe('Database', () => {
         .get('searchable');
 
       expect(ftsResult).toBeTruthy();
-      expect(ftsResult.rowid).toBe(chunkId);
+      expect((ftsResult as { rowid: number }).rowid).toBe(chunkId);
     });
   });
 });

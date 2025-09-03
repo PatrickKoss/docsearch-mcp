@@ -1,4 +1,4 @@
-import type { EmbeddingProvider } from '../../infrastructure/factories/embedding-factory.js';
+import type { EmbeddingProvider } from '../factories/embedding-factory.js';
 
 export interface DatabaseConfig {
   readonly path: string;

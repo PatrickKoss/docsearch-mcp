@@ -1,6 +1,6 @@
-import type { SearchResultEntity, ChunkContentEntity } from '../../domain/entities/document.js';
-import type { SearchRepository } from '../../domain/ports/search-repository.js';
-import type { SearchFilters } from '../../domain/value-objects/search-criteria.js';
+import type { SearchResultEntity, ChunkContentEntity } from '../../../domain/entities/document.js';
+import type { SearchRepository } from '../../../domain/ports/search-repository.js';
+import type { SearchFilters } from '../../../domain/value-objects/search-criteria.js';
 import type Database from 'better-sqlite3';
 
 export class SqliteSearchRepository implements SearchRepository {

@@ -1,9 +1,9 @@
 import {
   SqliteDocumentRepository,
   type SqliteDatabaseConfig,
-} from '../repositories/sqlite-document-repository.js';
-import { SqliteMetadataRepository } from '../repositories/sqlite-metadata-repository.js';
-import { SqliteSearchRepository } from '../repositories/sqlite-search-repository.js';
+} from '../adapters/repositories/sqlite-document-repository.js';
+import { SqliteMetadataRepository } from '../adapters/repositories/sqlite-metadata-repository.js';
+import { SqliteSearchRepository } from '../adapters/repositories/sqlite-search-repository.js';
 
 import type Database from 'better-sqlite3';
 
