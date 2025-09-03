@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Main application - MCP Server
+  docsearch-mcp:
+    build: .
+    container_name: docsearch-mcp
+    ports:
+      - "3000:3000"
+    environment:
+      # Copy from .env file or override here
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_EMBED_MODEL=${OPENAI_EMBED_MODEL:-text-embedding-3-small}
+      - OPENAI_EMBED_DIM=${OPENAI_EMBED_DIM:-1536}
+      - CONFLUENCE_BASE_URL=${CONFLUENCE_BASE_URL}
+      - CONFLUENCE_EMAIL=${CONFLUENCE_EMAIL}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+      - CONFLUENCE_SPACES=${CONFLUENCE_SPACES}
+      - FILE_ROOTS=${FILE_ROOTS:-/app/documents}
+      - FILE_INCLUDE_GLOBS=${FILE_INCLUDE_GLOBS}
+      - FILE_EXCLUDE_GLOBS=${FILE_EXCLUDE_GLOBS}
+      - DB_TYPE=${DB_TYPE:-sqlite}
+      - DB_PATH=${DB_PATH:-/app/data/index.db}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+    volumes:
+      # Mount local documents directory
+      - ./documents:/app/documents:ro
+      # Persist database
+      - docsearch-data:/app/data
+    networks:
+      - docsearch-network
+    depends_on:
+      - postgres
+    command: ["pnpm", "start:mcp"]
+
+  # CLI service for running ingestion and search commands
+  docsearch-cli:
+    build: .
+    container_name: docsearch-cli
+    environment:
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_EMBED_MODEL=${OPENAI_EMBED_MODEL:-text-embedding-3-small}
+      - OPENAI_EMBED_DIM=${OPENAI_EMBED_DIM:-1536}
+      - CONFLUENCE_BASE_URL=${CONFLUENCE_BASE_URL}
+      - CONFLUENCE_EMAIL=${CONFLUENCE_EMAIL}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+      - CONFLUENCE_SPACES=${CONFLUENCE_SPACES}
+      - FILE_ROOTS=${FILE_ROOTS:-/app/documents}
+      - FILE_INCLUDE_GLOBS=${FILE_INCLUDE_GLOBS}
+      - FILE_EXCLUDE_GLOBS=${FILE_EXCLUDE_GLOBS}
+      - DB_TYPE=${DB_TYPE:-postgresql}
+      - POSTGRES_CONNECTION_STRING=postgresql://docsearch:password@postgres:5432/docsearch
+    volumes:
+      - ./documents:/app/documents:ro
+      - docsearch-data:/app/data
+    networks:
+      - docsearch-network
+    depends_on:
+      - postgres
+    profiles:
+      - cli
+    command: ["tail", "-f", "/dev/null"]  # Keep container running for manual commands
+
+  # PostgreSQL database (optional - can use SQLite instead)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: docsearch-postgres
+    environment:
+      - POSTGRES_DB=docsearch
+      - POSTGRES_USER=docsearch
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - docsearch-network
+    profiles:
+      - postgres
+
+  # Text Embeddings Inference (TEI) server as alternative to OpenAI
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    container_name: docsearch-tei
+    ports:
+      - "8080:80"
+    environment:
+      - MODEL_ID=BAAI/bge-small-en-v1.5
+    volumes:
+      - tei-data:/data
+    networks:
+      - docsearch-network
+    profiles:
+      - tei
+    command: ["--model-id", "BAAI/bge-small-en-v1.5", "--port", "80"]
+
+volumes:
+  docsearch-data:
+  postgres-data:
+  tei-data:
+
+networks:
+  docsearch-network:
+    driver: bridge

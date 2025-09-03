@@ -1,0 +1,85 @@
+# Build artifacts
+dist/
+build/
+.next/
+out/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+.nyc_output
+
+# Test files and directories
+test/
+tests/
+spec/
+__tests__/
+*.test.*
+*.spec.*
+
+# Documentation that's not needed in container
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Database files (will be in mounted volumes)
+data/
+*.db
+*.sqlite
+
+# Documents directory (will be mounted)
+documents/
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Development tools config
+.eslintrc*
+.prettierrc*
+jest.config.*
+vitest.config.*
+tsconfig*.json
+!tsconfig.json
+
+# Temporary files
+tmp/
+temp/

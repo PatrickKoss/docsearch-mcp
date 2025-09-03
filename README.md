@@ -23,10 +23,38 @@ A local-first document search and indexing system that provides hybrid semantic 
 
 ### Prerequisites
 
-- Node.js 18+
-- npm/pnpm/yarn
+- Node.js 18+ (for local development)
+- Docker and Docker Compose (for containerized deployment)
+- npm/pnpm/yarn (for local development)
 
-### Installation
+### Installation Options
+
+#### Option 1: Docker (Recommended for Production)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/docsearch-mcp.git
+cd docsearch-mcp
+
+# Setup environment
+cp .env.example .env
+# Edit .env with your API keys and configuration
+
+# Create documents directory for local files
+mkdir -p documents
+
+# Start with Docker Compose (SQLite by default)
+docker-compose up -d docsearch-mcp
+
+# Or start with PostgreSQL
+docker-compose --profile postgres up -d
+
+# For local embeddings with TEI instead of OpenAI
+docker-compose --profile tei up -d tei
+# Then update .env: EMBEDDINGS_PROVIDER=tei, TEI_ENDPOINT=http://localhost:8080/embeddings
+```
+
+#### Option 2: Local Development
 
 ```bash
 # Clone the repository
@@ -44,7 +72,23 @@ cp .env.example .env
 
 ### Basic Usage
 
-#### CLI Tool
+#### Docker Usage
+
+```bash
+# Ingest documents using Docker
+docker-compose run --rm docsearch-cli pnpm start:cli ingest files
+docker-compose run --rm docsearch-cli pnpm start:cli ingest confluence
+docker-compose run --rm docsearch-cli pnpm start:cli ingest all
+
+# Search documents using Docker
+docker-compose run --rm docsearch-cli pnpm start:cli search "your query"
+docker-compose run --rm docsearch-cli pnpm start:cli search "typescript" -k 5 -o json
+
+# Interactive CLI access
+docker-compose exec docsearch-cli sh
+```
+
+#### CLI Tool (Local Development)
 
 ```bash
 # Ingest documents
@@ -64,6 +108,21 @@ pnpm dev:cli search --help
 
 #### MCP Server
 
+##### Docker (Recommended)
+
+```bash
+# The MCP server starts automatically with docker-compose
+docker-compose up -d docsearch-mcp
+
+# Check logs
+docker-compose logs -f docsearch-mcp
+
+# Stop the server
+docker-compose down
+```
+
+##### Local Development
+
 ```bash
 # Using Make (recommended)
 make ingest-files              # Index your local files
@@ -79,6 +138,30 @@ pnpm build && pnpm start:mcp
 ```
 
 ## ⚙️ Configuration
+
+### Docker Configuration
+
+When using Docker, create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+Key considerations for Docker deployment:
+
+- **Document Volume**: Place your documents in the `./documents` directory, which gets mounted to `/app/documents` in the container
+- **Data Persistence**: The SQLite database persists in the `docsearch-data` Docker volume
+- **Network Access**: PostgreSQL and TEI services are available via Docker network
+- **Environment Variables**: All configuration is passed via environment variables
+
+#### Docker Compose Profiles
+
+- **Default**: Runs MCP server with SQLite database
+- **postgres**: Adds PostgreSQL database (`--profile postgres`)
+- **tei**: Adds local Text Embeddings Inference server (`--profile tei`)
+- **cli**: Enables CLI service for manual commands (`--profile cli`)
+
+### Local Development Configuration
 
 Create a `.env` file from `.env.example` and configure:
 
@@ -179,6 +262,8 @@ The CLI supports multiple configuration sources in order of precedence:
 
 ### MCP Integration
 
+#### Local Development
+
 Add to your Claude Code MCP settings:
 
 ```json
@@ -191,6 +276,23 @@ Add to your Claude Code MCP settings:
   }
 }
 ```
+
+#### Docker Integration
+
+For Docker-based deployment, you can connect to the containerized MCP server:
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "docker",
+      "args": ["exec", "-i", "docsearch-mcp", "node", "dist/src/server/mcp.js"]
+    }
+  }
+}
+```
+
+Or run the MCP server on a port and connect via stdio-over-tcp (requires additional setup).
 
 #### MCP Tools
 

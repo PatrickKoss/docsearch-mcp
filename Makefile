@@ -28,10 +28,10 @@ dev: ## Start development server for MCP
 	@echo -e "$(BLUE)Starting MCP development server...$(NC)"
 	pnpm dev:mcp
 
-.PHONY: dev-ingest
-dev-ingest: ## Start development ingestion
-	@echo -e "$(BLUE)Starting development ingestion...$(NC)"
-	pnpm dev:ingest
+.PHONY: dev-cli
+dev-cli: ## Start CLI in development mode
+	@echo -e "$(BLUE)Starting CLI in development mode...$(NC)"
+	pnpm dev:cli
 
 ##@ Build Commands
 
@@ -127,27 +127,50 @@ start: build ## Start production MCP server
 	@echo -e "$(GREEN)Starting production MCP server...$(NC)"
 	pnpm start:mcp
 
-.PHONY: start-ingest
-start-ingest: build ## Start production ingestion
-	@echo -e "$(GREEN)Starting production ingestion...$(NC)"
-	pnpm start:ingest
+.PHONY: start-cli
+start-cli: build ## Start CLI in production mode
+	@echo -e "$(GREEN)Starting CLI in production mode...$(NC)"
+	pnpm start:cli
 
 ##@ Data Management
 
 .PHONY: ingest-files
 ingest-files: ## Ingest local files
 	@echo -e "$(BLUE)Ingesting local files...$(NC)"
-	pnpm dev:ingest files
+	pnpm dev:cli ingest files
 
 .PHONY: ingest-confluence
 ingest-confluence: ## Ingest Confluence pages
 	@echo -e "$(BLUE)Ingesting Confluence pages...$(NC)"
-	pnpm dev:ingest confluence
+	pnpm dev:cli ingest confluence
+
+.PHONY: ingest-all
+ingest-all: ## Ingest all sources (files and confluence)
+	@echo -e "$(BLUE)Ingesting all sources...$(NC)"
+	pnpm dev:cli ingest all
 
 .PHONY: watch
 watch: ## Watch for file changes and re-index
 	@echo -e "$(BLUE)Watching for file changes...$(NC)"
-	pnpm dev:ingest watch
+	pnpm dev:cli ingest all --watch
+
+.PHONY: search
+search: ## Search documents (usage: make search QUERY="your search query")
+	@echo -e "$(BLUE)Searching documents...$(NC)"
+	@if [ -z "$(QUERY)" ]; then \
+		echo -e "$(RED)Error: Please provide a query. Usage: make search QUERY=\"your search query\"$(NC)"; \
+		exit 1; \
+	fi
+	pnpm dev:cli search "$(QUERY)"
+
+.PHONY: search-json
+search-json: ## Search documents with JSON output (usage: make search-json QUERY="your search query")
+	@echo -e "$(BLUE)Searching documents (JSON output)...$(NC)"
+	@if [ -z "$(QUERY)" ]; then \
+		echo -e "$(RED)Error: Please provide a query. Usage: make search-json QUERY=\"your search query\"$(NC)"; \
+		exit 1; \
+	fi
+	pnpm dev:cli search "$(QUERY)" --output json
 
 .PHONY: clean-data
 clean-data: ## Clean data directory
