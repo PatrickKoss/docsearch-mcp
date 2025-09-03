@@ -7,13 +7,22 @@ import type { Configuration, ConfigurationProvider } from '../../domain/ports.js
 
 export interface ConfigOverrides {
   readonly configFile?: string;
-  readonly dbPath?: string;
-  readonly embedProvider?: 'openai' | 'tei';
+  readonly embeddingsProvider?: string;
   readonly openaiApiKey?: string;
   readonly openaiBaseUrl?: string;
+  readonly openaiEmbedModel?: string;
+  readonly openaiEmbedDim?: string;
+  readonly teiEndpoint?: string;
   readonly confluenceBaseUrl?: string;
   readonly confluenceEmail?: string;
   readonly confluenceApiToken?: string;
+  readonly confluenceSpaces?: string;
+  readonly fileRoots?: string;
+  readonly fileIncludeGlobs?: string;
+  readonly fileExcludeGlobs?: string;
+  readonly dbType?: string;
+  readonly dbPath?: string;
+  readonly postgresConnectionString?: string;
 }
 
 export class EnvConfigProvider implements ConfigurationProvider {
@@ -46,45 +55,69 @@ export class EnvConfigProvider implements ConfigurationProvider {
     return {
       embeddings: {
         provider: this.validateEmbeddingsProvider(
-          this.overrides.embedProvider || process.env.EMBEDDINGS_PROVIDER || 'openai',
+          this.overrides.embeddingsProvider || process.env.EMBEDDINGS_PROVIDER || 'openai',
         ),
         openai: {
           apiKey: this.overrides.openaiApiKey || process.env.OPENAI_API_KEY || '',
           baseUrl: this.overrides.openaiBaseUrl || process.env.OPENAI_BASE_URL || '',
-          model: process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
-          dimension: parseInt(process.env.OPENAI_EMBED_DIM || '1536', 10),
+          model:
+            this.overrides.openaiEmbedModel ||
+            process.env.OPENAI_EMBED_MODEL ||
+            'text-embedding-3-small',
+          dimension: parseInt(
+            this.overrides.openaiEmbedDim || process.env.OPENAI_EMBED_DIM || '1536',
+            10,
+          ),
         },
         tei: {
-          endpoint: process.env.TEI_ENDPOINT || '',
+          endpoint: this.overrides.teiEndpoint || process.env.TEI_ENDPOINT || '',
         },
       },
       confluence: {
         baseUrl: this.overrides.confluenceBaseUrl || process.env.CONFLUENCE_BASE_URL || '',
         email: this.overrides.confluenceEmail || process.env.CONFLUENCE_EMAIL || '',
         apiToken: this.overrides.confluenceApiToken || process.env.CONFLUENCE_API_TOKEN || '',
-        spaces: this.splitCsv(process.env.CONFLUENCE_SPACES, ''),
+        spaces: this.splitCsv(this.overrides.confluenceSpaces, process.env.CONFLUENCE_SPACES || ''),
       },
       files: {
-        roots: this.splitCsv(process.env.FILE_ROOTS, '.'),
-        includeGlobs: this.splitCsv(
+        roots: this.splitCsvWithDefault(this.overrides.fileRoots, process.env.FILE_ROOTS, '.'),
+        includeGlobs: this.splitCsvWithDefault(
+          this.overrides.fileIncludeGlobs,
           process.env.FILE_INCLUDE_GLOBS,
           '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}',
         ),
-        excludeGlobs: this.splitCsv(
+        excludeGlobs: this.splitCsvWithDefault(
+          this.overrides.fileExcludeGlobs,
           process.env.FILE_EXCLUDE_GLOBS,
           '**/{.git,node_modules,dist,build,target}/**',
         ),
       },
       database: {
-        type: this.validateDatabaseType(process.env.DB_TYPE || 'sqlite'),
+        type: this.validateDatabaseType(this.overrides.dbType || process.env.DB_TYPE || 'sqlite'),
         path: this.overrides.dbPath || process.env.DB_PATH || './data/index.db',
-        connectionString: process.env.POSTGRES_CONNECTION_STRING || '',
+        connectionString:
+          this.overrides.postgresConnectionString || process.env.POSTGRES_CONNECTION_STRING || '',
       },
     };
   }
 
-  private splitCsv(value: string | undefined, defaultValue: string): readonly string[] {
-    const raw = value && value.length ? value : defaultValue;
+  private splitCsv(cliValue: string | undefined, envValue: string): readonly string[] {
+    const raw = cliValue || envValue;
+    if (!raw || raw.length === 0) {
+      return [];
+    }
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  private splitCsvWithDefault(
+    cliValue: string | undefined,
+    envValue: string | undefined,
+    defaultValue: string,
+  ): readonly string[] {
+    const raw = cliValue || envValue || defaultValue;
     return raw
       .split(',')
       .map((s) => s.trim())

@@ -223,26 +223,118 @@ PDF files are processed with:
 
 The CLI tool provides a convenient way to ingest and search documents directly from the command line:
 
-#### CLI Commands
+#### CLI Commands & Flags
+
+All CLI flags support configuration precedence: **CLI args > Environment variables > Config file**
+
+##### Global Options (Available for all commands)
+
+| Flag                                    | Environment Variable         | Default                                                       | Description                              |
+| --------------------------------------- | ---------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
+| `-c, --config <file>`                   | -                            | `.env`                                                        | Configuration file path                  |
+| `--embeddings-provider <provider>`      | `EMBEDDINGS_PROVIDER`        | `openai`                                                      | Embeddings provider (`openai` or `tei`)  |
+| `--openai-api-key <key>`                | `OPENAI_API_KEY`             | -                                                             | OpenAI API key                           |
+| `--openai-base-url <url>`               | `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)   |
+| `--openai-embed-model <model>`          | `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                   |
+| `--openai-embed-dim <dimension>`        | `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension               |
+| `--tei-endpoint <url>`                  | `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint       |
+| `--confluence-base-url <url>`           | `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                      |
+| `--confluence-email <email>`            | `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                         |
+| `--confluence-api-token <token>`        | `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                     |
+| `--confluence-spaces <spaces>`          | `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)      |
+| `--file-roots <roots>`                  | `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)    |
+| `--file-include-globs <globs>`          | `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                    |
+| `--file-exclude-globs <globs>`          | `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                    |
+| `--db-type <type>`                      | `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite` or `postgresql`) |
+| `--db-path <path>`                      | `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                     |
+| `--postgres-connection-string <string>` | `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string             |
+
+##### Ingest Command
 
 ```bash
-# Global options (work with any command)
---config <file>              # Custom config file path
---db-path <path>             # Database path override
---openai-api-key <key>       # OpenAI API key override
+docsearch ingest [source] [options]
+```
 
-# Ingest command
-docsearch ingest [source]    # Source: files, confluence, or all (default: all)
-  -w, --watch                # Watch for file changes and re-index
+**Arguments:**
 
-# Search command
-docsearch search <query>
-  -k, --top-k <number>       # Number of results (default: 10)
-  -s, --source <source>      # Filter by source: file or confluence
-  -r, --repo <repo>          # Filter by repository name
-  -p, --path-prefix <prefix> # Filter by path prefix
-  -m, --mode <mode>          # Search mode: auto, vector, or keyword
-  -o, --output <format>      # Output format: text, json, or yaml
+- `source` - Source to ingest: `files`, `confluence`, or `all` (default: `all`)
+
+**Options:**
+
+- `-w, --watch` - Watch for file changes and re-index
+
+**Examples:**
+
+```bash
+# Basic ingestion with environment config
+docsearch ingest files
+docsearch ingest confluence
+docsearch ingest all --watch
+
+# Override config with CLI args
+docsearch ingest files --file-roots "./src,./docs" --openai-api-key sk-xxx
+
+# Use custom config file and database
+docsearch --config prod.env --db-path /data/prod.db ingest all
+
+# Ingest with custom file patterns
+docsearch ingest files \
+  --file-include-globs "**/*.{ts,md,py}" \
+  --file-exclude-globs "**/node_modules/**,**/venv/**"
+
+# Use PostgreSQL instead of SQLite
+docsearch ingest all \
+  --db-type postgresql \
+  --postgres-connection-string "postgresql://user:pass@localhost:5432/docs"
+```
+
+##### Search Command
+
+```bash
+docsearch search <query> [options]
+```
+
+**Arguments:**
+
+- `query` - Search query (required)
+
+**Options:**
+
+| Flag                         | Default | Description                                 |
+| ---------------------------- | ------- | ------------------------------------------- |
+| `-k, --top-k <number>`       | `10`    | Number of results to return (1-100)         |
+| `-s, --source <source>`      | -       | Filter by source: `file` or `confluence`    |
+| `-r, --repo <repo>`          | -       | Filter by repository name                   |
+| `-p, --path-prefix <prefix>` | -       | Filter by path prefix                       |
+| `-m, --mode <mode>`          | `auto`  | Search mode: `auto`, `vector`, or `keyword` |
+| `-o, --output <format>`      | `text`  | Output format: `text`, `json`, or `yaml`    |
+
+**Examples:**
+
+```bash
+# Basic search
+docsearch search "typescript interface"
+
+# Limit results and format as JSON
+docsearch search "API documentation" --top-k 5 --output json
+
+# Search only Confluence with repository filter
+docsearch search "deployment guide" --source confluence --repo backend-docs
+
+# Semantic search only with path filtering
+docsearch search "authentication" --mode vector --path-prefix src/auth/
+
+# Override database and output as YAML
+docsearch --db-path /custom/index.db search "error handling" --output yaml
+
+# Complex search with multiple filters
+docsearch search "React hooks" \
+  --source file \
+  --repo frontend \
+  --path-prefix src/components/ \
+  --mode auto \
+  --top-k 20 \
+  --output json
 ```
 
 #### CLI Configuration
@@ -262,24 +354,75 @@ The CLI supports multiple configuration sources in order of precedence:
 
 ### MCP Integration
 
-#### Local Development
+The MCP (Model Context Protocol) server provides seamless integration with Claude Code and other MCP-compatible tools.
 
-Add to your Claude Code MCP settings:
+#### MCP Configuration Options
 
-```json
-{
-  "mcpServers": {
-    "docsearch": {
-      "command": "node",
-      "args": ["path/to/docsearch-mcp/dist/src/server/mcp.js"]
-    }
-  }
-}
-```
+All configuration options are passed via environment variables to the MCP server:
+
+##### Required Configuration
+
+| Environment Variable  | Default  | Description                               |
+| --------------------- | -------- | ----------------------------------------- |
+| `EMBEDDINGS_PROVIDER` | `openai` | Embeddings provider (`openai` or `tei`)   |
+| `OPENAI_API_KEY`      | -        | OpenAI API key (required if using OpenAI) |
+
+##### Optional Configuration
+
+| Environment Variable         | Default                                                       | Description                              |
+| ---------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
+| `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)   |
+| `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                   |
+| `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension               |
+| `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint       |
+| `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)    |
+| `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                    |
+| `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                    |
+| `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                      |
+| `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                         |
+| `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                     |
+| `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)      |
+| `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite` or `postgresql`) |
+| `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                     |
+| `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string             |
+
+#### Local Development Setup
+
+1. **Build the project:**
+
+   ```bash
+   pnpm build
+   ```
+
+2. **Create your configuration:**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and settings
+   ```
+
+3. **Add to Claude Code MCP settings:**
+
+   ```json
+   {
+     "mcpServers": {
+       "docsearch": {
+         "command": "node",
+         "args": ["/absolute/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+         "env": {
+           "OPENAI_API_KEY": "your-openai-key",
+           "EMBEDDINGS_PROVIDER": "openai",
+           "FILE_ROOTS": ".,../other-project",
+           "DB_PATH": "/path/to/your/index.db"
+         }
+       }
+     }
+   }
+   ```
 
 #### Docker Integration
 
-For Docker-based deployment, you can connect to the containerized MCP server:
+##### Method 1: Direct Docker Execution
 
 ```json
 {
@@ -292,15 +435,421 @@ For Docker-based deployment, you can connect to the containerized MCP server:
 }
 ```
 
-Or run the MCP server on a port and connect via stdio-over-tcp (requires additional setup).
+##### Method 2: Docker Run (if container not running)
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/path/to/your/documents:/app/documents",
+        "-v",
+        "docsearch-data:/app/data",
+        "--env-file",
+        ".env",
+        "docsearch-mcp",
+        "node",
+        "dist/src/server/mcp.js"
+      ]
+    }
+  }
+}
+```
+
+#### Advanced MCP Configuration Examples
+
+##### Multi-Project Setup
+
+```json
+{
+  "mcpServers": {
+    "docsearch-work": {
+      "command": "node",
+      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "FILE_ROOTS": "/work/projects/frontend,/work/projects/backend",
+        "FILE_INCLUDE_GLOBS": "**/*.{ts,tsx,js,py,md,yaml}",
+        "DB_PATH": "/work/data/work-index.db",
+        "CONFLUENCE_BASE_URL": "https://company.atlassian.net",
+        "CONFLUENCE_SPACES": "DEV,API,DOCS"
+      }
+    },
+    "docsearch-personal": {
+      "command": "node",
+      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "FILE_ROOTS": "/home/user/projects,/home/user/documents",
+        "DB_PATH": "/home/user/.docsearch/personal.db",
+        "EMBEDDINGS_PROVIDER": "tei",
+        "TEI_ENDPOINT": "http://localhost:8080/embeddings"
+      }
+    }
+  }
+}
+```
+
+##### PostgreSQL Setup
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "node",
+      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "DB_TYPE": "postgresql",
+        "POSTGRES_CONNECTION_STRING": "postgresql://user:pass@localhost:5432/docsearch",
+        "FILE_ROOTS": ".,/other/projects"
+      }
+    }
+  }
+}
+```
 
 #### MCP Tools
 
 The MCP server provides these tools for Claude Code:
 
-- **`doc-search`**: Search indexed documents with optional output formatting
-- **`doc-ingest`**: Ingest documents from files or Confluence
-- **`doc-ingest-status`**: Get indexing statistics and status
+##### `doc-search`
+
+Search indexed documents with optional output formatting.
+
+**Parameters:**
+
+- `query` (string, required): Search query
+- `topK` (number, optional): Number of results to return (default: 10, max: 100)
+- `source` (string, optional): Filter by source (`file` or `confluence`)
+- `repo` (string, optional): Filter by repository name
+- `pathPrefix` (string, optional): Filter by path prefix
+- `mode` (string, optional): Search mode (`auto`, `vector`, `keyword`, default: `auto`)
+- `outputFormat` (string, optional): Output format (`text`, `json`, `yaml`, default: `text`)
+
+**Example:**
+
+```text
+Use the doc-search tool to find "TypeScript interfaces" with JSON output format, limited to 5 results from file sources only.
+```
+
+##### `doc-ingest`
+
+Ingest documents from files or Confluence.
+
+**Parameters:**
+
+- `source` (string, required): Source to ingest (`files`, `confluence`, or `all`)
+- `watch` (boolean, optional): Watch for file changes and re-index (default: false)
+
+**Example:**
+
+```text
+Use the doc-ingest tool to index all local files and Confluence pages.
+```
+
+##### `doc-ingest-status`
+
+Get indexing statistics and status.
+
+**No parameters required.**
+
+**Example:**
+
+```text
+Use the doc-ingest-status tool to check how many documents are currently indexed.
+```
+
+#### MCP Resources
+
+The server also provides chunk resources via URIs:
+
+- **`docchunk://{chunk_id}`**: Retrieve full content of a specific document chunk by ID
+
+## 📚 Practical Examples
+
+### Complete Setup Workflows
+
+#### Local Development Workflow
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/yourusername/docsearch-mcp.git
+cd docsearch-mcp
+make setup
+
+# 2. Configure with your API key
+echo "OPENAI_API_KEY=sk-your-key-here" >> .env
+echo "FILE_ROOTS=.,../other-project" >> .env
+
+# 3. Index your documents
+pnpm dev:cli ingest all --watch &
+
+# 4. Test search
+pnpm dev:cli search "how to deploy" --output json --top-k 3
+
+# 5. Build for MCP
+pnpm build
+
+# 6. Test MCP server
+node dist/src/server/mcp.js
+```
+
+#### Production Docker Workflow
+
+```bash
+# 1. Setup production environment
+cp .env.example .env
+# Edit .env with production values
+
+# 2. Create documents directory
+mkdir -p documents
+cp -r /path/to/your/docs/* documents/
+
+# 3. Start with PostgreSQL
+docker-compose --profile postgres up -d
+
+# 4. Index documents
+docker-compose run --rm docsearch-cli pnpm start:cli ingest all
+
+# 5. Test search
+docker-compose run --rm docsearch-cli pnpm start:cli search "authentication" -o json
+```
+
+### Common Use Cases
+
+#### Code Documentation Search
+
+**Setup for a TypeScript/React Project:**
+
+```bash
+# CLI configuration
+docsearch ingest files \
+  --file-roots "./src,./docs,./README.md" \
+  --file-include-globs "**/*.{ts,tsx,md,yaml,json}" \
+  --file-exclude-globs "**/node_modules/**,**/dist/**,**/.git/**"
+
+# Search for React patterns
+docsearch search "useEffect hook patterns" --source file --top-k 10
+docsearch search "TypeScript interface" --mode vector --output json
+```
+
+**MCP Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "project-docs": {
+      "command": "node",
+      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "FILE_ROOTS": "./src,./docs,./README.md",
+        "FILE_INCLUDE_GLOBS": "**/*.{ts,tsx,md,yaml,json}",
+        "FILE_EXCLUDE_GLOBS": "**/node_modules/**,**/dist/**",
+        "DB_PATH": "./project-search.db"
+      }
+    }
+  }
+}
+```
+
+#### Multi-Repository Setup
+
+**Team Documentation Hub:**
+
+```json
+{
+  "mcpServers": {
+    "team-knowledge": {
+      "command": "node",
+      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "FILE_ROOTS": "/team/frontend,/team/backend,/team/mobile,/team/docs",
+        "CONFLUENCE_BASE_URL": "https://company.atlassian.net",
+        "CONFLUENCE_SPACES": "TEAM,API,ARCH,DEPLOY",
+        "CONFLUENCE_EMAIL": "team@company.com",
+        "CONFLUENCE_API_TOKEN": "your-token",
+        "DB_TYPE": "postgresql",
+        "POSTGRES_CONNECTION_STRING": "postgresql://user:pass@localhost/team_docs"
+      }
+    }
+  }
+}
+```
+
+**Personal Research Setup:**
+
+```bash
+# Index academic papers and personal notes
+docsearch ingest files \
+  --file-roots "/home/user/papers,/home/user/notes,/home/user/projects" \
+  --file-include-globs "**/*.{pdf,md,txt,py,ipynb}" \
+  --embeddings-provider tei \
+  --tei-endpoint "http://localhost:8080/embeddings"
+
+# Search across all personal knowledge
+docsearch search "machine learning optimization" --mode auto --top-k 15
+```
+
+#### PDF-Heavy Workflow
+
+```bash
+# Setup for research document collection
+docsearch ingest files \
+  --file-roots "/research/papers,/research/reports" \
+  --file-include-globs "**/*.{pdf,docx,md,txt}" \
+  --openai-embed-model "text-embedding-3-large" \
+  --openai-embed-dim 3072
+
+# Search through research papers
+docsearch search "neural network architectures" \
+  --mode vector \
+  --top-k 20 \
+  --output yaml
+```
+
+### Advanced Search Examples
+
+#### Complex Filtering
+
+```bash
+# Search only TypeScript files in components directory
+docsearch search "button component" \
+  --source file \
+  --path-prefix src/components/ \
+  --mode auto
+
+# Find Confluence deployment docs from specific space
+docsearch search "kubernetes deployment" \
+  --source confluence \
+  --repo DEVOPS \
+  --mode keyword
+
+# Semantic search across all sources with high precision
+docsearch search "error handling patterns" \
+  --mode vector \
+  --top-k 50 \
+  --output json | jq '.results[] | select(.score > 0.8)'
+```
+
+#### Output Format Examples
+
+**Text Output (Human-readable):**
+
+```bash
+docsearch search "authentication middleware" --output text
+```
+
+**JSON Output (For scripts):**
+
+```bash
+# Get results for further processing
+RESULTS=$(docsearch search "API rate limiting" --output json)
+echo "$RESULTS" | jq '.results[].path' | head -5
+```
+
+**YAML Output (For documentation):**
+
+```bash
+# Generate documentation from search results
+docsearch search "configuration options" --output yaml > config-docs.yml
+```
+
+### Troubleshooting Examples
+
+#### Debug Search Quality
+
+```bash
+# Compare search modes
+docsearch search "async function" --mode keyword --top-k 5
+docsearch search "async function" --mode vector --top-k 5
+docsearch search "async function" --mode auto --top-k 5
+
+# Check what's indexed
+docsearch ingest-status
+```
+
+#### Performance Optimization
+
+```bash
+# Use smaller embedding model for speed
+docsearch ingest all \
+  --openai-embed-model "text-embedding-3-small" \
+  --openai-embed-dim 1536
+
+# Use local TEI for privacy/speed
+docker run -d --name tei -p 8080:80 \
+  ghcr.io/huggingface/text-embeddings-inference:cpu-1.2 \
+  --model-id sentence-transformers/all-MiniLM-L6-v2
+
+docsearch ingest all \
+  --embeddings-provider tei \
+  --tei-endpoint http://localhost:8080/embeddings
+```
+
+### Integration Examples
+
+#### CI/CD Pipeline Integration
+
+```yaml
+# .github/workflows/docs-index.yml
+name: Update Documentation Index
+on:
+  push:
+    paths: ['docs/**', 'src/**/*.md', 'README.md']
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm install -g pnpm && pnpm install
+      - name: Build docsearch
+        run: pnpm build
+      - name: Update search index
+        run: |
+          pnpm start:cli ingest files \
+            --file-roots "." \
+            --openai-api-key "${{ secrets.OPENAI_API_KEY }}" \
+            --db-path "./search-index.db"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+#### Script Integration
+
+```bash
+#!/bin/bash
+# update-docs.sh - Automated documentation indexing
+
+# Check if API key is set
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "Please set OPENAI_API_KEY environment variable"
+    exit 1
+fi
+
+# Index all project documentation
+echo "Indexing project documentation..."
+docsearch ingest files \
+    --file-roots "./src,./docs,./examples" \
+    --file-include-globs "**/*.{ts,js,md,yaml,json}" \
+    --db-path "./project-index.db"
+
+# Generate search summary
+echo "Search index updated. Statistics:"
+docsearch ingest-status --output json | jq '.documents'
+```
 
 ### Search Modes
 

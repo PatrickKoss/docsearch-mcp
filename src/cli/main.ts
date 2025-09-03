@@ -16,13 +16,22 @@ program.name('docsearch').description('Document search and indexing CLI').versio
 // Global options
 program
   .option('-c, --config <file>', 'Configuration file path')
-  .option('--db-path <path>', 'Database path')
-  .option('--embed-provider <provider>', 'Embeddings provider (openai|tei)')
+  .option('--embeddings-provider <provider>', 'Embeddings provider (openai|tei)')
   .option('--openai-api-key <key>', 'OpenAI API key')
   .option('--openai-base-url <url>', 'OpenAI base URL')
+  .option('--openai-embed-model <model>', 'OpenAI embedding model')
+  .option('--openai-embed-dim <dimension>', 'OpenAI embedding dimension')
+  .option('--tei-endpoint <url>', 'TEI endpoint URL')
   .option('--confluence-base-url <url>', 'Confluence base URL')
   .option('--confluence-email <email>', 'Confluence email')
-  .option('--confluence-api-token <token>', 'Confluence API token');
+  .option('--confluence-api-token <token>', 'Confluence API token')
+  .option('--confluence-spaces <spaces>', 'Confluence spaces (comma-separated)')
+  .option('--file-roots <roots>', 'File roots (comma-separated)')
+  .option('--file-include-globs <globs>', 'File include globs (comma-separated)')
+  .option('--file-exclude-globs <globs>', 'File exclude globs (comma-separated)')
+  .option('--db-type <type>', 'Database type (sqlite|postgresql)')
+  .option('--db-path <path>', 'SQLite database path')
+  .option('--postgres-connection-string <string>', 'PostgreSQL connection string');
 
 // Ingest command
 program
@@ -34,13 +43,22 @@ program
     const globalOpts = cmd.parent?.opts() || {};
     const configOverrides: ConfigOverrides = {
       configFile: globalOpts.config,
-      dbPath: globalOpts.dbPath,
-      embedProvider: globalOpts.embedProvider,
+      embeddingsProvider: globalOpts.embeddingsProvider,
       openaiApiKey: globalOpts.openaiApiKey,
       openaiBaseUrl: globalOpts.openaiBaseUrl,
+      openaiEmbedModel: globalOpts.openaiEmbedModel,
+      openaiEmbedDim: globalOpts.openaiEmbedDim,
+      teiEndpoint: globalOpts.teiEndpoint,
       confluenceBaseUrl: globalOpts.confluenceBaseUrl,
       confluenceEmail: globalOpts.confluenceEmail,
       confluenceApiToken: globalOpts.confluenceApiToken,
+      confluenceSpaces: globalOpts.confluenceSpaces,
+      fileRoots: globalOpts.fileRoots,
+      fileIncludeGlobs: globalOpts.fileIncludeGlobs,
+      fileExcludeGlobs: globalOpts.fileExcludeGlobs,
+      dbType: globalOpts.dbType,
+      dbPath: globalOpts.dbPath,
+      postgresConnectionString: globalOpts.postgresConnectionString,
     };
 
     try {
@@ -97,13 +115,22 @@ program
       const globalOpts = cmd.parent?.opts() || {};
       const configOverrides: ConfigOverrides = {
         configFile: globalOpts.config,
-        dbPath: globalOpts.dbPath,
-        embedProvider: globalOpts.embedProvider,
+        embeddingsProvider: globalOpts.embeddingsProvider,
         openaiApiKey: globalOpts.openaiApiKey,
         openaiBaseUrl: globalOpts.openaiBaseUrl,
+        openaiEmbedModel: globalOpts.openaiEmbedModel,
+        openaiEmbedDim: globalOpts.openaiEmbedDim,
+        teiEndpoint: globalOpts.teiEndpoint,
         confluenceBaseUrl: globalOpts.confluenceBaseUrl,
         confluenceEmail: globalOpts.confluenceEmail,
         confluenceApiToken: globalOpts.confluenceApiToken,
+        confluenceSpaces: globalOpts.confluenceSpaces,
+        fileRoots: globalOpts.fileRoots,
+        fileIncludeGlobs: globalOpts.fileIncludeGlobs,
+        fileExcludeGlobs: globalOpts.fileExcludeGlobs,
+        dbType: globalOpts.dbType,
+        dbPath: globalOpts.dbPath,
+        postgresConnectionString: globalOpts.postgresConnectionString,
       };
 
       try {
