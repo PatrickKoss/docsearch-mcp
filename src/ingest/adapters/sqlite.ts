@@ -366,4 +366,9 @@ export class SqliteAdapter implements DatabaseAdapter {
 
     transaction();
   }
+
+  async rawQuery(sql: string): Promise<Record<string, unknown>[]> {
+    const stmt = this.db.prepare(sql);
+    return stmt.all() as Record<string, unknown>[];
+  }
 }

@@ -59,6 +59,9 @@ export interface DatabaseAdapter {
 
   // Cleanup operations
   cleanupDocumentChunks(documentId: number): Promise<void>;
+
+  // Raw query for statistics (adapter specific)
+  rawQuery(sql: string): Promise<Record<string, unknown>[]>;
 }
 
 export interface SearchFilters {

@@ -13,8 +13,10 @@ A local-first document search and indexing system that provides hybrid semantic 
 - **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
 - **🗄️ Database Flexibility**: Support for SQLite (local-first) and PostgreSQL (scalable)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
+- **💻 CLI Tool**: Standalone command-line interface with multiple output formats
 - **⚡ Real-time Updates**: File watching with automatic re-indexing
 - **🎯 Smart Chunking**: Intelligent text chunking for code, documentation, and PDFs
+- **📊 Multiple Output Formats**: Text, JSON, and YAML output for search results
 - **🔒 Secure**: API keys and sensitive data stay on your machine
 
 ## 🚀 Quick Start
@@ -41,6 +43,26 @@ cp .env.example .env
 ```
 
 ### Basic Usage
+
+#### CLI Tool
+
+```bash
+# Ingest documents
+pnpm dev:cli ingest files              # Index local files
+pnpm dev:cli ingest confluence         # Index Confluence pages
+pnpm dev:cli ingest all --watch        # Index all sources with file watching
+
+# Search documents
+pnpm dev:cli search "your query"       # Basic search
+pnpm dev:cli search "typescript" -k 5 -o json  # JSON output, top 5 results
+pnpm dev:cli search "API docs" -s confluence   # Search only Confluence
+
+# Get help
+pnpm dev:cli --help
+pnpm dev:cli search --help
+```
+
+#### MCP Server
 
 ```bash
 # Using Make (recommended)
@@ -114,6 +136,47 @@ PDF files are processed with:
 
 ## 📖 Usage
 
+### CLI Tool
+
+The CLI tool provides a convenient way to ingest and search documents directly from the command line:
+
+#### CLI Commands
+
+```bash
+# Global options (work with any command)
+--config <file>              # Custom config file path
+--db-path <path>             # Database path override
+--openai-api-key <key>       # OpenAI API key override
+
+# Ingest command
+docsearch ingest [source]    # Source: files, confluence, or all (default: all)
+  -w, --watch                # Watch for file changes and re-index
+
+# Search command
+docsearch search <query>
+  -k, --top-k <number>       # Number of results (default: 10)
+  -s, --source <source>      # Filter by source: file or confluence
+  -r, --repo <repo>          # Filter by repository name
+  -p, --path-prefix <prefix> # Filter by path prefix
+  -m, --mode <mode>          # Search mode: auto, vector, or keyword
+  -o, --output <format>      # Output format: text, json, or yaml
+```
+
+#### CLI Configuration
+
+The CLI supports multiple configuration sources in order of precedence:
+
+1. Command-line arguments (highest priority)
+2. Custom config file (`--config path/to/.env`)
+3. `.env.local` file
+4. `.env` file (lowest priority)
+
+#### CLI Output Formats
+
+- **Text** (default): Human-readable with icons and formatting
+- **JSON**: Structured data with timestamps for integration
+- **YAML**: Clean hierarchical format for configuration or documentation
+
 ### MCP Integration
 
 Add to your Claude Code MCP settings:
@@ -123,11 +186,19 @@ Add to your Claude Code MCP settings:
   "mcpServers": {
     "docsearch": {
       "command": "node",
-      "args": ["path/to/docsearch-mcp/dist/server/mcp.js"]
+      "args": ["path/to/docsearch-mcp/dist/src/server/mcp.js"]
     }
   }
 }
 ```
+
+#### MCP Tools
+
+The MCP server provides these tools for Claude Code:
+
+- **`doc-search`**: Search indexed documents with optional output formatting
+- **`doc-ingest`**: Ingest documents from files or Confluence
+- **`doc-ingest-status`**: Get indexing statistics and status
 
 ### Search Modes
 
@@ -175,12 +246,16 @@ make clean-data                 # Clean data directory
 ### NPM Scripts (Alternative)
 
 ```bash
-# Ingestion
+# CLI Tool
+pnpm dev:cli                    # CLI development mode
+pnpm start:cli                  # CLI production mode (after build)
+
+# Ingestion (legacy scripts)
 pnpm dev:ingest files           # Index local files
 pnpm dev:ingest confluence      # Index Confluence pages
 pnpm dev:ingest watch           # Watch for file changes
 
-# Server
+# MCP Server
 pnpm dev:mcp                    # Development server
 pnpm start:mcp                  # Production server
 
@@ -193,6 +268,8 @@ pnpm build                      # Build project
 ```
 
 ## 🏗️ Architecture
+
+The system follows a clean ports and adapters (hexagonal) architecture:
 
 ```text
 ┌─────────────────┐    ┌─────────────────┐
@@ -218,14 +295,23 @@ pnpm build                      # Build project
     │   • Full-text search index     │
     └─────────────┬───────────────────┘
                   │
-                  ▼
-    ┌─────────────────────────────────┐
-    │         MCP Server              │
-    │   • Hybrid search engine       │
-    │   • Resource resolution        │
-    │   • Claude Code integration    │
-    └─────────────────────────────────┘
+        ┌─────────┴─────────┐
+        ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐
+│   CLI Tool      │  │   MCP Server    │
+│ • Text output   │  │ • Tool calls    │
+│ • JSON output   │  │ • Resources     │
+│ • YAML output   │  │ • Claude integration │
+│ • Config mgmt   │  │ • Ingestion tools     │
+└─────────────────┘  └─────────────────┘
 ```
+
+### Key Components
+
+- **Domain Layer**: Core interfaces and business logic
+- **Adapters**: Configuration, database, and output formatting
+- **CLI**: Command-line interface with multiple output formats
+- **MCP Server**: Model Context Protocol integration with Claude Code
 
 ## 🤝 Contributing
 

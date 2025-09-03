@@ -373,4 +373,9 @@ export class PostgresAdapter implements DatabaseAdapter {
       throw error;
     }
   }
+
+  async rawQuery(sql: string): Promise<Record<string, unknown>[]> {
+    const result = await this.client.query(sql);
+    return result.rows as Record<string, unknown>[];
+  }
 }

@@ -4,7 +4,10 @@ import { z } from 'zod';
 
 import { getDatabase } from '../ingest/database.js';
 import { performSearch } from '../ingest/search.js';
+import { registerIngestTools } from './tools/ingest-tools.js';
+import { FormatterFactory } from '../cli/adapters/output/formatter-factory.js';
 
+import type { OutputFormat } from '../cli/domain/ports.js';
 import type { SearchResult as AdapterSearchResult } from '../ingest/adapters/index.js';
 import type { SearchParams, SearchMode } from '../ingest/search.js';
 import type { SourceType } from '../shared/types.js';
@@ -40,9 +43,13 @@ interface SearchToolInput {
   readonly repo?: string | undefined;
   readonly pathPrefix?: string | undefined;
   readonly mode?: SearchMode | undefined;
+  readonly output?: OutputFormat | undefined;
 }
 
 const server = new McpServer({ name: 'docsearch-mcp', version: '0.1.0' });
+
+// Register ingestion tools
+registerIngestTools(server);
 
 server.registerResource(
   'docchunk',
@@ -83,6 +90,7 @@ server.registerTool(
       repo: z.string().optional(),
       pathPrefix: z.string().optional(),
       mode: z.enum(['auto', 'vector', 'keyword']).optional(),
+      output: z.enum(['text', 'json', 'yaml']).optional(),
     },
   },
   async (input: SearchToolInput) => {
@@ -97,6 +105,26 @@ server.registerTool(
 
     const items = results.slice(0, input.topK ?? 8);
 
+    // Handle output formatting if requested
+    if (input.output && input.output !== 'text') {
+      // Convert to CLI-compatible format for formatting
+      const cliResults = items.map((r) => ({
+        ...r,
+        id: r.chunk_id,
+        title: r.title || r.path || r.uri,
+        content: r.snippet || '',
+        source: r.source as SourceType,
+      }));
+
+      const formatter = FormatterFactory.createFormatter(input.output);
+      const formattedOutput = formatter.format(cliResults);
+
+      return {
+        content: [{ type: 'text' as const, text: formattedOutput }],
+      };
+    }
+
+    // Default MCP text output with resource links
     const content: ContentItem[] = [
       { type: 'text', text: `Found ${items.length} results for "${input.query}"` },
     ];

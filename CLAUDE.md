@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a local-first document search and indexing system with an MCP server that provides hybrid semantic+keyword search across local files (including PDFs) and Confluence pages. The system chunks documents, creates embeddings, stores them in SQLite with vector search capabilities, and exposes search functionality through the Model Context Protocol.
+This is a local-first document search and indexing system with both a CLI tool and MCP server that provides hybrid semantic+keyword search across local files (including PDFs) and Confluence pages. The system chunks documents, creates embeddings, stores them in SQLite with vector search capabilities, and exposes search functionality through both a command-line interface and the Model Context Protocol.
 
 ## Development Commands
 
@@ -14,7 +14,20 @@ make setup                   # Install dependencies and setup .env
 pnpm i                       # Install dependencies only
 cp .env.example .env         # Set up environment variables
 
-# Data ingestion
+# CLI Tool
+pnpm dev:cli                 # Start CLI in development mode
+pnpm start:cli               # Run built CLI
+
+# Data ingestion (CLI)
+pnpm dev:cli ingest files    # Index local files via CLI
+pnpm dev:cli ingest confluence # Index Confluence pages via CLI
+pnpm dev:cli ingest all -w   # Index all sources with file watching
+
+# Search (CLI)
+pnpm dev:cli search "query"  # Search documents via CLI
+pnpm dev:cli search "test" -o json # Search with JSON output
+
+# Data ingestion (legacy)
 pnpm dev:ingest files        # Index local files
 pnpm dev:ingest confluence   # Index Confluence pages
 pnpm dev:ingest watch        # Watch for file changes and re-index
@@ -44,7 +57,16 @@ make dev                    # Start MCP development server
 
 ### Core Components
 
-- **MCP Server** (`src/server/mcp.ts`): Exposes `doc-search` tool and `docchunk://` resources via Model Context Protocol
+- **CLI Tool** (`src/cli/`): Command-line interface with ports and adapters architecture
+  - Domain layer with clean interfaces (`src/cli/domain/ports.ts`)
+  - Configuration adapters supporting env files, CLI args, and env variables
+  - Output format adapters (text, JSON, YAML)
+  - Document service adapters bridging to ingestion system
+- **MCP Server** (`src/server/mcp.ts`): Enhanced with ingestion tools and output formatting
+  - `doc-search`: Search with optional output formatting
+  - `doc-ingest`: Document ingestion from files or Confluence
+  - `doc-ingest-status`: Index statistics and status
+  - `docchunk://` resources for chunk retrieval
 - **Ingestion Pipeline** (`src/ingest/`): Processes files and Confluence pages into searchable chunks
 - **Search Engine** (`src/ingest/search.ts`): Hybrid search combining FTS (keyword) and vector similarity
 - **Database Schema** (`src/ingest/db.ts`): SQLite with sqlite-vec extension for vector storage
@@ -56,6 +78,21 @@ make dev                    # Start MCP development server
 3. **Retrieval**: Resource URIs (`docchunk://{id}`) → Full chunk content with metadata
 
 ### Key Files
+
+**CLI Implementation:**
+
+- `src/cli/main.ts`: CLI application entry point with Commander.js
+- `src/cli/domain/ports.ts`: Core interfaces and types for CLI functionality
+- `src/cli/adapters/config/env-config-provider.ts`: Multi-source configuration management
+- `src/cli/adapters/output/`: Output format adapters (text, JSON, YAML)
+- `src/cli/adapters/document/document-service.ts`: Bridge between CLI and ingestion system
+
+**MCP Server:**
+
+- `src/server/mcp.ts`: Enhanced MCP server with ingestion capabilities
+- `src/server/tools/ingest-tools.ts`: MCP tools for document ingestion and status
+
+**Core System:**
 
 - `src/ingest/indexer.ts`: Core indexing operations (upsert documents, embed chunks)
 - `src/ingest/sources/`: File system (including PDF) and Confluence content ingestion
