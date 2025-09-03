@@ -4,7 +4,7 @@ import { dirname } from 'path';
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
 
-import { CONFIG } from '../shared/config.js';
+import { CONFIG } from '../infrastructure/config/legacy-config.js';
 
 export type DB = Database.Database;
 

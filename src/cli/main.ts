@@ -2,36 +2,20 @@
 
 import { Command } from 'commander';
 
-import { EnvConfigProvider } from './adapters/config/env-config-provider.js';
-import { DocumentServiceAdapter } from './adapters/document/document-service.js';
+import { ConfigAdapter } from '../application/adapters/config-adapter.js';
+import { ApplicationFactory } from '../application/factories/application-factory.js';
 import { FormatterFactory } from './adapters/output/formatter-factory.js';
 
-import type { ConfigOverrides } from './adapters/config/env-config-provider.js';
-import type { IngestCommand, OutputFormat, SearchCommand } from './domain/ports.js';
+import type { OutputFormat } from './ports.js';
+import type { SourceType } from '../domain/entities/document.js';
 
 const program = new Command();
 
 program.name('docsearch').description('Document search and indexing CLI').version('0.1.0');
 
-// Global options
-program
-  .option('-c, --config <file>', 'Configuration file path')
-  .option('--embeddings-provider <provider>', 'Embeddings provider (openai|tei)')
-  .option('--openai-api-key <key>', 'OpenAI API key')
-  .option('--openai-base-url <url>', 'OpenAI base URL')
-  .option('--openai-embed-model <model>', 'OpenAI embedding model')
-  .option('--openai-embed-dim <dimension>', 'OpenAI embedding dimension')
-  .option('--tei-endpoint <url>', 'TEI endpoint URL')
-  .option('--confluence-base-url <url>', 'Confluence base URL')
-  .option('--confluence-email <email>', 'Confluence email')
-  .option('--confluence-api-token <token>', 'Confluence API token')
-  .option('--confluence-spaces <spaces>', 'Confluence spaces (comma-separated)')
-  .option('--file-roots <roots>', 'File roots (comma-separated)')
-  .option('--file-include-globs <globs>', 'File include globs (comma-separated)')
-  .option('--file-exclude-globs <globs>', 'File exclude globs (comma-separated)')
-  .option('--db-type <type>', 'Database type (sqlite|postgresql)')
-  .option('--db-path <path>', 'SQLite database path')
-  .option('--postgres-connection-string <string>', 'PostgreSQL connection string');
+// Initialize application once at startup
+const config = ConfigAdapter.fromEnvironment();
+const app = ApplicationFactory.create(config);
 
 // Ingest command
 program
@@ -39,49 +23,31 @@ program
   .description('Ingest documents for indexing')
   .argument('[source]', 'Source to ingest (files|confluence|all)', 'all')
   .option('-w, --watch', 'Watch for file changes and re-index')
-  .action(async (source: string, options: { watch?: boolean }, cmd: Command) => {
-    const globalOpts = cmd.parent?.opts() || {};
-    const configOverrides: ConfigOverrides = {
-      configFile: globalOpts.config,
-      embeddingsProvider: globalOpts.embeddingsProvider,
-      openaiApiKey: globalOpts.openaiApiKey,
-      openaiBaseUrl: globalOpts.openaiBaseUrl,
-      openaiEmbedModel: globalOpts.openaiEmbedModel,
-      openaiEmbedDim: globalOpts.openaiEmbedDim,
-      teiEndpoint: globalOpts.teiEndpoint,
-      confluenceBaseUrl: globalOpts.confluenceBaseUrl,
-      confluenceEmail: globalOpts.confluenceEmail,
-      confluenceApiToken: globalOpts.confluenceApiToken,
-      confluenceSpaces: globalOpts.confluenceSpaces,
-      fileRoots: globalOpts.fileRoots,
-      fileIncludeGlobs: globalOpts.fileIncludeGlobs,
-      fileExcludeGlobs: globalOpts.fileExcludeGlobs,
-      dbType: globalOpts.dbType,
-      dbPath: globalOpts.dbPath,
-      postgresConnectionString: globalOpts.postgresConnectionString,
-    };
-
+  .action(async (source: string, options: { watch?: boolean }) => {
     try {
-      // Initialize configuration
-      const configProvider = new EnvConfigProvider(configOverrides);
-      await configProvider.getConfiguration(); // Load configuration
-
       // Validate source
       if (!['file', 'files', 'confluence', 'all'].includes(source)) {
         console.error(`Invalid source: ${source}. Must be one of: files, confluence, all`);
         process.exit(1);
       }
 
-      // Normalize source name
+      // Normalize source name (files -> file)
       const normalizedSource = source === 'files' ? 'file' : source;
+      const sources: readonly (SourceType | 'all')[] =
+        normalizedSource === 'all' ? ['all'] : [normalizedSource as SourceType];
 
-      const ingestCommand: IngestCommand = {
-        source: normalizedSource as 'file' | 'confluence' | 'all',
-        watch: options.watch ?? false,
-      };
+      console.log(`Starting ingestion for source: ${normalizedSource}`);
 
-      const documentService = new DocumentServiceAdapter();
-      await documentService.ingest(ingestCommand);
+      const ingestRequest = options.watch ? { sources, watch: options.watch } : { sources };
+
+      const result = await app.services.documentService.ingestDocuments(ingestRequest);
+
+      if (result.success) {
+        console.log(result.message);
+      } else {
+        console.error(result.message);
+        process.exit(1);
+      }
     } catch (error) {
       console.error('Ingestion failed:', error);
       process.exit(1);
@@ -110,34 +76,8 @@ program
         mode?: string;
         output?: string;
       },
-      cmd: Command,
     ) => {
-      const globalOpts = cmd.parent?.opts() || {};
-      const configOverrides: ConfigOverrides = {
-        configFile: globalOpts.config,
-        embeddingsProvider: globalOpts.embeddingsProvider,
-        openaiApiKey: globalOpts.openaiApiKey,
-        openaiBaseUrl: globalOpts.openaiBaseUrl,
-        openaiEmbedModel: globalOpts.openaiEmbedModel,
-        openaiEmbedDim: globalOpts.openaiEmbedDim,
-        teiEndpoint: globalOpts.teiEndpoint,
-        confluenceBaseUrl: globalOpts.confluenceBaseUrl,
-        confluenceEmail: globalOpts.confluenceEmail,
-        confluenceApiToken: globalOpts.confluenceApiToken,
-        confluenceSpaces: globalOpts.confluenceSpaces,
-        fileRoots: globalOpts.fileRoots,
-        fileIncludeGlobs: globalOpts.fileIncludeGlobs,
-        fileExcludeGlobs: globalOpts.fileExcludeGlobs,
-        dbType: globalOpts.dbType,
-        dbPath: globalOpts.dbPath,
-        postgresConnectionString: globalOpts.postgresConnectionString,
-      };
-
       try {
-        // Initialize configuration
-        const configProvider = new EnvConfigProvider(configOverrides);
-        await configProvider.getConfiguration(); // Load configuration
-
         // Validate options
         const topK = parseInt(options.topK || '10', 10);
         if (isNaN(topK) || topK < 1 || topK > 100) {
@@ -160,21 +100,37 @@ program
           process.exit(1);
         }
 
-        const searchCommand: SearchCommand = {
+        // Execute search using document service
+        const searchResults = await app.services.documentService.searchDocuments({
           query,
-          topK,
-          source: options.source as 'file' | 'confluence' | undefined,
-          repo: options.repo,
+          limit: topK,
+          mode: (options.mode as 'auto' | 'vector' | 'keyword') || 'auto',
+          source: options.source as SourceType | undefined,
+          repository: options.repo,
           pathPrefix: options.pathPrefix,
-          mode: options.mode as 'auto' | 'vector' | 'keyword' | undefined,
-          output: options.output as OutputFormat | undefined,
-        };
+        });
 
-        const documentService = new DocumentServiceAdapter();
-        const results = await documentService.search(searchCommand);
+        // Convert domain results to CLI format for formatter
+        const cliResults = searchResults.map((result) => ({
+          id: result.id,
+          title: result.title,
+          content: result.content,
+          chunk_id: result.chunkId,
+          score: result.score,
+          document_id: result.documentId,
+          source: result.source,
+          uri: result.uri,
+          repo: result.repo,
+          path: result.path,
+          start_line: result.startLine,
+          end_line: result.endLine,
+          snippet: result.snippet,
+        }));
 
-        const formatter = FormatterFactory.createFormatter(searchCommand.output || 'text');
-        const output = formatter.format(results);
+        const formatter = FormatterFactory.createFormatter(
+          (options.output as OutputFormat) || 'text',
+        );
+        const output = formatter.format(cliResults);
 
         console.log(output);
       } catch (error) {

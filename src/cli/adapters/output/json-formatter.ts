@@ -1,4 +1,4 @@
-import type { OutputFormatter, SearchResult } from '../../domain/ports.js';
+import type { OutputFormatter, SearchResult } from '../../ports.js';
 
 interface JsonOutput {
   readonly results: readonly SearchResult[];

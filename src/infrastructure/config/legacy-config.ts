@@ -1,9 +1,11 @@
+// Legacy configuration for the old ingest system
+// TODO: This should be removed once the legacy ingest system is fully migrated
 import 'dotenv/config';
 
 type EmbeddingsProvider = 'openai' | 'tei';
 type DatabaseType = 'sqlite' | 'postgresql';
 
-interface AppConfig {
+interface LegacyAppConfig {
   readonly EMBEDDINGS_PROVIDER: EmbeddingsProvider;
   readonly OPENAI_API_KEY: string;
   readonly OPENAI_BASE_URL: string;
@@ -47,7 +49,7 @@ function validateDatabaseType(dbType: string): DatabaseType {
   return 'sqlite';
 }
 
-export const CONFIG: AppConfig = {
+export const LEGACY_CONFIG: LegacyAppConfig = {
   EMBEDDINGS_PROVIDER: validateEmbeddingsProvider(process.env.EMBEDDINGS_PROVIDER || 'openai'),
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
@@ -74,3 +76,6 @@ export const CONFIG: AppConfig = {
   DB_PATH: process.env.DB_PATH || './data/index.db',
   POSTGRES_CONNECTION_STRING: process.env.POSTGRES_CONNECTION_STRING || '',
 } as const;
+
+// Legacy export for backward compatibility
+export { LEGACY_CONFIG as CONFIG };

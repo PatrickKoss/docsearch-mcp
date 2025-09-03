@@ -18,7 +18,7 @@ describe('Embeddings', () => {
 
   describe('OpenAIEmbedder', () => {
     beforeEach(() => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -37,7 +37,7 @@ describe('Embeddings', () => {
     });
 
     it('should throw error if API key is missing', async () => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: '',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -122,7 +122,7 @@ describe('Embeddings', () => {
 
   describe('TEIEmbedder', () => {
     beforeEach(() => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -141,7 +141,7 @@ describe('Embeddings', () => {
     });
 
     it('should throw error if endpoint is missing', async () => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -218,7 +218,7 @@ describe('Embeddings', () => {
     });
 
     it('should strip trailing slash from endpoint', async () => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -237,7 +237,7 @@ describe('Embeddings', () => {
 
   describe('getEmbedder', () => {
     it('should return OpenAIEmbedder by default', async () => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',
@@ -254,7 +254,7 @@ describe('Embeddings', () => {
     });
 
     it('should return TEIEmbedder when configured', async () => {
-      vi.doMock('../src/shared/config.js', () => ({
+      vi.doMock('../src/infrastructure/config/legacy-config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: 'test-key',
           OPENAI_BASE_URL: 'https://api.openai.com/v1',

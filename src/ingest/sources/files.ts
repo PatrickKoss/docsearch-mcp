@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import fg from 'fast-glob';
 
-import { CONFIG } from '../../shared/config.js';
+import { CONFIG } from '../../infrastructure/config/legacy-config.js';
 import { chunkCode, chunkDoc, chunkPdf } from '../chunker.js';
 import { sha256 } from '../hash.js';
 import { Indexer } from '../indexer.js';

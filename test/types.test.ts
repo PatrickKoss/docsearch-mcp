@@ -11,7 +11,7 @@ import type {
   ChunkInput,
   DocumentInput,
   ChunkWithMetadata,
-} from '../src/shared/types.js';
+} from '../src/infrastructure/database/legacy-types.js';
 
 describe('Type definitions', () => {
   describe('SourceType', () => {

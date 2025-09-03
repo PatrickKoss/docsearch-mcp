@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import type { OutputFormatter, SearchResult } from '../../domain/ports.js';
+import type { OutputFormatter, SearchResult } from '../../ports.js';
 
 interface YamlOutput {
   readonly results: readonly SearchResult[];

@@ -1,6 +1,6 @@
 import { fetch } from 'undici';
 
-import { CONFIG } from '../shared/config.js';
+import { CONFIG } from '../infrastructure/config/legacy-config.js';
 
 export interface Embedder {
   readonly dim: number;

@@ -2,7 +2,7 @@ import { JsonFormatter } from './json-formatter.js';
 import { TextFormatter } from './text-formatter.js';
 import { YamlFormatter } from './yaml-formatter.js';
 
-import type { OutputFormat, OutputFormatter } from '../../domain/ports.js';
+import type { OutputFormat, OutputFormatter } from '../../ports.js';
 
 export class FormatterFactory {
   static createFormatter(format: OutputFormat): OutputFormatter {

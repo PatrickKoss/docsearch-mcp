@@ -1,7 +1,7 @@
 import { getEmbedder } from './embeddings.js';
 
 import type { DatabaseAdapter } from './adapters/index.js';
-import type { DocumentInput, ChunkInput } from '../shared/types.js';
+import type { DocumentInput, ChunkInput } from '../infrastructure/database/legacy-types.js';
 
 export class Indexer {
   constructor(private readonly adapter: DatabaseAdapter) {}

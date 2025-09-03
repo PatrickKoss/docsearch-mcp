@@ -1,7 +1,7 @@
 import { getEmbedder } from './embeddings.js';
 
 import type { DatabaseAdapter, SearchResult } from './adapters/index.js';
-import type { SourceType } from '../shared/types.js';
+import type { SourceType } from '../infrastructure/database/legacy-types.js';
 
 export type SearchMode = 'auto' | 'vector' | 'keyword';
 

@@ -53,7 +53,7 @@ The content should be properly chunked and indexed for search.`,
   }),
 }));
 
-vi.mock('../../src/shared/config.js', () => ({
+vi.mock('../../src/infrastructure/config/legacy-config.js', () => ({
   CONFIG: {
     FILE_ROOTS: ['./test/fixtures'],
     FILE_INCLUDE_GLOBS: ['**/*.{ts,js,py,md,txt,pdf}'],

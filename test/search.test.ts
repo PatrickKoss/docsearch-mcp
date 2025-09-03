@@ -5,8 +5,8 @@ import { SqliteAdapter } from '../src/ingest/adapters/sqlite.js';
 import { Indexer } from '../src/ingest/indexer.js';
 import { performSearch } from '../src/ingest/search.js';
 
+import type { DocumentInput, ChunkInput } from '../src/infrastructure/database/legacy-types.js';
 import type { SearchParams } from '../src/ingest/search.js';
-import type { DocumentInput, ChunkInput } from '../src/shared/types.js';
 
 // Mock the embeddings module since we don't want to make real API calls in tests
 vi.mock('../src/ingest/embeddings.js', () => ({

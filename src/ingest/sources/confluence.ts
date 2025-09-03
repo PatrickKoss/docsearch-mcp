@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import TurndownService from 'turndown';
 
-import { CONFIG } from '../../shared/config.js';
+import { CONFIG } from '../../infrastructure/config/legacy-config.js';
 import { chunkDoc } from '../chunker.js';
 import { Indexer } from '../indexer.js';
 

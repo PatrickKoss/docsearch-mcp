@@ -1,6 +1,6 @@
 import { PostgresAdapter, type PostgresConfig } from './postgresql.js';
 import { SqliteAdapter, type SqliteConfig } from './sqlite.js';
-import { CONFIG } from '../../shared/config.js';
+import { CONFIG } from '../../infrastructure/config/legacy-config.js';
 
 import type { DatabaseAdapter } from './types.js';
 

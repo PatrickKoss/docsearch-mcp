@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import dotenv from 'dotenv';
 
-import type { Configuration, ConfigurationProvider } from '../../domain/ports.js';
+import type { Configuration, ConfigurationProvider } from '../../ports.js';
 
 export interface ConfigOverrides {
   readonly configFile?: string;

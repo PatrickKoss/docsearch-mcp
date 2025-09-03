@@ -28,7 +28,7 @@ describe('Configuration', () => {
       delete process.env.FILE_ROOTS;
       delete process.env.DB_PATH;
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.EMBEDDINGS_PROVIDER).toBe('openai');
       expect(CONFIG.OPENAI_API_KEY).toBe(''); // Default empty string when no env var
@@ -48,7 +48,7 @@ describe('Configuration', () => {
       process.env.TEI_ENDPOINT = 'http://tei-server:8080';
       process.env.DB_PATH = '/custom/path/db.sqlite';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.EMBEDDINGS_PROVIDER).toBe('tei');
       expect(CONFIG.OPENAI_API_KEY).toBe('test-key-123');
@@ -61,33 +61,33 @@ describe('Configuration', () => {
 
     it('should validate embeddings provider', async () => {
       process.env.EMBEDDINGS_PROVIDER = 'invalid-provider';
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG.EMBEDDINGS_PROVIDER).toBe('openai');
 
       vi.resetModules();
       process.env.EMBEDDINGS_PROVIDER = 'tei';
-      const { CONFIG: CONFIG2 } = await import('../src/shared/config.js');
+      const { CONFIG: CONFIG2 } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG2.EMBEDDINGS_PROVIDER).toBe('tei');
 
       vi.resetModules();
       process.env.EMBEDDINGS_PROVIDER = 'openai';
-      const { CONFIG: CONFIG3 } = await import('../src/shared/config.js');
+      const { CONFIG: CONFIG3 } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG3.EMBEDDINGS_PROVIDER).toBe('openai');
     });
 
     it('should parse integer values correctly', async () => {
       process.env.OPENAI_EMBED_DIM = '512';
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG.OPENAI_EMBED_DIM).toBe(512);
 
       vi.resetModules();
       process.env.OPENAI_EMBED_DIM = 'invalid-number';
-      const { CONFIG: CONFIG2 } = await import('../src/shared/config.js');
+      const { CONFIG: CONFIG2 } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG2.OPENAI_EMBED_DIM).toBe(NaN);
 
       vi.resetModules();
       process.env.OPENAI_EMBED_DIM = '';
-      const { CONFIG: CONFIG3 } = await import('../src/shared/config.js');
+      const { CONFIG: CONFIG3 } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG3.OPENAI_EMBED_DIM).toBe(1536);
     });
   });
@@ -99,7 +99,7 @@ describe('Configuration', () => {
       delete process.env.CONFLUENCE_API_TOKEN;
       delete process.env.CONFLUENCE_SPACES;
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.CONFLUENCE_BASE_URL).toBe('');
       expect(CONFIG.CONFLUENCE_EMAIL).toBe('');
@@ -113,7 +113,7 @@ describe('Configuration', () => {
       process.env.CONFLUENCE_API_TOKEN = 'token123';
       process.env.CONFLUENCE_SPACES = 'PROJ,DOCS,WIKI';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.CONFLUENCE_BASE_URL).toBe('https://company.atlassian.net/wiki');
       expect(CONFIG.CONFLUENCE_EMAIL).toBe('user@company.com');
@@ -128,7 +128,7 @@ describe('Configuration', () => {
       delete process.env.FILE_INCLUDE_GLOBS;
       delete process.env.FILE_EXCLUDE_GLOBS;
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.FILE_ROOTS).toEqual(['.']);
       expect(CONFIG.FILE_INCLUDE_GLOBS).toEqual([
@@ -161,7 +161,7 @@ describe('Configuration', () => {
       process.env.FILE_INCLUDE_GLOBS = '**/*.ts,**/*.js,**/*.md';
       process.env.FILE_EXCLUDE_GLOBS = '**/node_modules/**,**/.git/**,**/dist/**';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.FILE_ROOTS).toEqual(['/project1', '/project2', './local']);
       expect(CONFIG.FILE_INCLUDE_GLOBS).toEqual(['**/*.ts', '**/*.js', '**/*.md']);
@@ -172,7 +172,7 @@ describe('Configuration', () => {
       process.env.FILE_ROOTS = '';
       process.env.CONFLUENCE_SPACES = '';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.FILE_ROOTS).toEqual(['.']); // Uses default when empty
       expect(CONFIG.CONFLUENCE_SPACES).toEqual([]);
@@ -182,7 +182,7 @@ describe('Configuration', () => {
       process.env.FILE_ROOTS = ' /path1 , /path2  ,  /path3 ';
       process.env.CONFLUENCE_SPACES = ' SPACE1,  SPACE2  , SPACE3 ';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.FILE_ROOTS).toEqual(['/path1', '/path2', '/path3']);
       expect(CONFIG.CONFLUENCE_SPACES).toEqual(['SPACE1', 'SPACE2', 'SPACE3']);
@@ -192,7 +192,7 @@ describe('Configuration', () => {
       process.env.FILE_ROOTS = 'valid,,,also-valid,';
       process.env.CONFLUENCE_SPACES = 'SPACE1,,SPACE2,,';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       expect(CONFIG.FILE_ROOTS).toEqual(['valid', 'also-valid']);
       expect(CONFIG.CONFLUENCE_SPACES).toEqual(['SPACE1', 'SPACE2']);
@@ -203,32 +203,32 @@ describe('Configuration', () => {
     it('should handle single values', async () => {
       process.env.TEST_CSV = 'single-value';
 
-      const { CONFIG: _CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG: _CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
       process.env.FILE_ROOTS = 'single-root';
 
       vi.resetModules();
-      const { CONFIG: CONFIG2 } = await import('../src/shared/config.js');
+      const { CONFIG: CONFIG2 } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG2.FILE_ROOTS).toEqual(['single-root']);
     });
 
     it('should handle comma-only strings', async () => {
       process.env.FILE_ROOTS = ',,,';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG.FILE_ROOTS).toEqual([]);
     });
 
     it('should handle mixed empty and valid values', async () => {
       process.env.CONFLUENCE_SPACES = ',VALID1,  , VALID2 ,  ,';
 
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
       expect(CONFIG.CONFLUENCE_SPACES).toEqual(['VALID1', 'VALID2']);
     });
   });
 
   describe('Configuration immutability', () => {
     it('should make CONFIG read-only', async () => {
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       // Note: TypeScript `as const` makes the object readonly at compile time,
       // but not at runtime. This test documents current behavior.
@@ -242,7 +242,7 @@ describe('Configuration', () => {
     });
 
     it('should make array properties read-only', async () => {
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       // Note: Arrays returned by splitCsv are normal arrays, not frozen
       // This test documents current behavior
@@ -258,7 +258,7 @@ describe('Configuration', () => {
 
   describe('Type safety', () => {
     it('should have correct TypeScript types', async () => {
-      const { CONFIG } = await import('../src/shared/config.js');
+      const { CONFIG } = await import('../src/infrastructure/config/legacy-config.js');
 
       // These should compile without errors
       const provider: 'openai' | 'tei' = CONFIG.EMBEDDINGS_PROVIDER;

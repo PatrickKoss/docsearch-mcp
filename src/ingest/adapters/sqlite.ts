@@ -11,7 +11,7 @@ import type {
   ChunkContent,
   SearchFilters,
 } from './types.js';
-import type { DocumentInput, ChunkInput } from '../../shared/types.js';
+import type { DocumentInput, ChunkInput } from '../../infrastructure/database/legacy-types.js';
 
 export interface SqliteConfig {
   readonly path: string;

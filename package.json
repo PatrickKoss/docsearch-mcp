@@ -32,7 +32,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "dev:ingest": "tsx src/ingest/cli.ts",
     "dev:mcp": "tsx src/server/mcp.ts",
     "dev:cli": "tsx src/cli/main.ts",

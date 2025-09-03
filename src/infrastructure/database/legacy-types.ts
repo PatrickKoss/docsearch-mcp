@@ -1,10 +1,18 @@
-export type SourceType = 'file' | 'confluence';
+// Legacy database types - kept for backward compatibility during transition
+// These should be removed once the legacy ingest system migration is complete
+// TODO: Replace with proper domain entities and repository patterns
 
+// Use domain types instead of duplicating them
+import type { SourceType } from '../../domain/entities/document.js';
+export type { SourceType };
+
+// Legacy database row types - these contain [key: string]: unknown which violates domain principles
+// These are only used by the legacy ingest system and should eventually be removed
 export interface DocumentRow {
   readonly [key: string]: unknown;
   readonly id?: number;
   readonly source: SourceType;
-  readonly uri: string; // file://... or confluence://{id}
+  readonly uri: string;
   readonly repo?: string | null;
   readonly path?: string | null;
   readonly title?: string | null;
@@ -66,8 +74,14 @@ export interface ChunkInput {
   readonly tokenCount?: number;
 }
 
-export type DocumentInput = Omit<DocumentRow, 'id'>;
-
 export interface ChunkWithMetadata extends ChunkRow {
   readonly document: DocumentRow;
 }
+
+export type DocumentInput = Omit<DocumentRow, 'id'>;
+
+// Re-export domain types for convenience during migration
+export type { DocumentEntity } from '../../domain/entities/document.js';
+export type { ChunkEntity } from '../../domain/entities/document.js';
+export type { SearchResultEntity } from '../../domain/entities/document.js';
+export type { ChunkContentEntity as ChunkContent } from '../../domain/entities/document.js';

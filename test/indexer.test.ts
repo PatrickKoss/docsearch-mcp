@@ -4,7 +4,7 @@ import { testDbPath } from './setup.js';
 import { SqliteAdapter } from '../src/ingest/adapters/sqlite.js';
 import { Indexer } from '../src/ingest/indexer.js';
 
-import type { DocumentInput, ChunkInput } from '../src/shared/types.js';
+import type { DocumentInput, ChunkInput } from '../src/infrastructure/database/legacy-types.js';
 
 vi.mock('../src/ingest/embeddings.js', () => ({
   getEmbedder: vi.fn().mockReturnValue({

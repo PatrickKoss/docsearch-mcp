@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PostgresAdapter } from '../../src/ingest/adapters/postgresql.js';
 import { SqliteAdapter } from '../../src/ingest/adapters/sqlite.js';
 
-import type { DocumentInput, ChunkInput } from '../../src/shared/types.js';
+import type { DocumentInput, ChunkInput } from '../../src/infrastructure/database/legacy-types.js';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 describe('Database Adapter Comparison Tests', () => {

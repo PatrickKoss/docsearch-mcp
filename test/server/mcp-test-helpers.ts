@@ -4,9 +4,9 @@ import { SqliteAdapter } from '../../src/ingest/adapters/sqlite.js';
 import { performSearch } from '../../src/ingest/search.js';
 import { testDbPath } from '../setup.js';
 
+import type { SourceType } from '../../src/infrastructure/database/legacy-types.js';
 import type { SearchResult as AdapterSearchResult } from '../../src/ingest/adapters/types.js';
 import type { SearchParams, SearchMode } from '../../src/ingest/search.js';
-import type { SourceType } from '../../src/shared/types.js';
 
 interface SearchToolInput {
   readonly query: string;

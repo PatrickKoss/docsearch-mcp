@@ -1,5 +1,5 @@
-// Domain ports for CLI functionality
-import type { SourceType } from '../../shared/types.js';
+// CLI-specific ports and interfaces
+import type { SourceType } from '../domain/entities/document.js';
 
 export interface SearchResult {
   readonly id: number;
@@ -18,26 +18,6 @@ export interface SearchResult {
 }
 
 export type OutputFormat = 'text' | 'json' | 'yaml';
-
-export interface IngestCommand {
-  readonly source: SourceType | 'all';
-  readonly watch?: boolean | undefined;
-}
-
-export interface SearchCommand {
-  readonly query: string;
-  readonly topK?: number | undefined;
-  readonly source?: SourceType | undefined;
-  readonly repo?: string | undefined;
-  readonly pathPrefix?: string | undefined;
-  readonly mode?: 'auto' | 'vector' | 'keyword' | undefined;
-  readonly output?: OutputFormat | undefined;
-}
-
-export interface DocumentService {
-  ingest(command: IngestCommand): Promise<void>;
-  search(command: SearchCommand): Promise<SearchResult[]>;
-}
 
 export interface OutputFormatter {
   format(data: SearchResult[]): string;

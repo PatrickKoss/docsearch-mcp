@@ -7,7 +7,7 @@ import { testDbPath } from '../setup.js';
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-vi.mock('../../src/shared/config.js', () => ({
+vi.mock('../../src/infrastructure/config/legacy-config.js', () => ({
   CONFIG: {
     CONFLUENCE_BASE_URL: 'https://test.atlassian.net/wiki',
     CONFLUENCE_EMAIL: 'test@example.com',
@@ -67,7 +67,7 @@ describe('Confluence Source Ingestion', () => {
   describe('ingestConfluence', () => {
     it('should skip when required config is missing', async () => {
       // Save original config
-      const { CONFIG } = await import('../../src/shared/config.js');
+      const { CONFIG } = await import('../../src/infrastructure/config/legacy-config.js');
       const originalConfig = { ...CONFIG };
 
       // Temporarily modify config
