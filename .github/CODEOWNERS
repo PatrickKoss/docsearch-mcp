@@ -1,0 +1,17 @@
+# Global owners
+* @patrickkoss
+
+# GitHub Actions workflows
+/.github/ @patrickkoss
+
+# Package configuration
+/package.json @patrickkoss
+/pnpm-lock.yaml @patrickkoss
+
+# Docker configuration
+/Dockerfile @patrickkoss
+/.dockerignore @patrickkoss
+
+# Build and deployment
+/Makefile @patrickkoss
+/tsconfig*.json @patrickkoss

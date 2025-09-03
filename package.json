@@ -1,7 +1,35 @@
 {
   "name": "docsearch-mcp",
   "version": "0.1.0",
-  "private": true,
+  "description": "MCP server and CLI tool for local document search with hybrid semantic+keyword search across PDFs, files, and Confluence",
+  "keywords": [
+    "mcp",
+    "search",
+    "indexing",
+    "documents",
+    "pdf",
+    "confluence",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patrickkoss/docsearch-mcp.git"
+  },
+  "author": "Patrick Koss <pati.koss@gmx.de>",
+  "license": "MIT",
+  "main": "dist/src/server/mcp.js",
+  "bin": {
+    "docsearch-mcp": "dist/src/cli/main.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -23,7 +51,9 @@
     "format:check": "prettier --check '**/*.{ts,tsx,js,jsx,json,md}'",
     "typecheck": "tsc --noEmit",
     "typecheck:src": "tsc --noEmit --project tsconfig.src.json",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prepublishOnly": "npm run build",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",

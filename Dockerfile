@@ -1,58 +1,76 @@
-# Build stage
-FROM node:18-alpine AS builder
+# Multi-stage build for optimal image size and security
+FROM node:20-alpine AS base
 
-# Install Python and build dependencies for native modules
-RUN apk add --no-cache python3 make g++
+# Install system dependencies required for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    sqlite \
+    && ln -sf python3 /usr/bin/python
 
+# Enable corepack for pnpm
+RUN corepack enable
+
+# Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile
+# Install dependencies
+FROM base AS deps
+RUN pnpm install --frozen-lockfile --prod=false
 
-# Copy source code
+# Build stage
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
-RUN pnpm build
+# Build the project
+RUN pnpm run build
 
-# Production stage
-FROM node:18-alpine AS runner
-
-# Install Python for native modules
-RUN apk add --no-cache python3 make g++
-
-WORKDIR /app
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-
-# Install production dependencies only
+# Production dependencies
+FROM base AS prod-deps
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
+# Final production image
+FROM node:20-alpine AS runtime
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    sqlite \
+    dumb-init \
+    && addgroup -g 1001 -S docsearch \
+    && adduser -S docsearch -u 1001
+
+# Set working directory
+WORKDIR /app
+
 # Copy built application
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --chown=docsearch:docsearch /app/dist ./dist
+COPY --from=prod-deps --chown=docsearch:docsearch /app/node_modules ./node_modules
+COPY --chown=docsearch:docsearch package.json ./
 
-# Create data directory
-RUN mkdir -p /app/data
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chown docsearch:docsearch /app/data
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S docsearch -u 1001
-
-# Change ownership of the app directory
-RUN chown -R docsearch:nodejs /app
-
+# Switch to non-root user
 USER docsearch
 
-# Expose port (for MCP server)
+# Create volume for persistent data
+VOLUME ["/app/data"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node dist/src/server/mcp.js --help || exit 1
+
+# Expose port for MCP server (if running in server mode)
 EXPOSE 3000
 
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
 # Default command (can be overridden)
-CMD ["pnpm", "start:mcp"]
+CMD ["node", "dist/src/server/mcp.js"]

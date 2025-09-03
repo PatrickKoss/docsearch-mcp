@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-build:
+    name: Validate Build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run full CI pipeline
+        run: |
+          make lint
+          pnpm typecheck
+          make test
+          make build
+      
+      - name: Extract version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build
+          path: |
+            dist/
+            package.json
+            README.md
+            CHANGELOG.md
+          retention-days: 30
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: validate-build
+    environment: npm-publish
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: .
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Publish CLI package
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Create npm package summary
+        run: |
+          echo "## 📦 npm Package Published" >> $GITHUB_STEP_SUMMARY
+          echo "- Package: \`docsearch-mcp\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: \`${{ needs.validate-build.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Registry: [npmjs.com](https://www.npmjs.com/package/docsearch-mcp)" >> $GITHUB_STEP_SUMMARY
+
+  publish-container:
+    name: Publish Container Image
+    runs-on: ubuntu-latest
+    needs: validate-build
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: .
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Create container summary
+        run: |
+          echo "## 🐳 Container Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: \`${{ needs.validate-build.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Platforms: \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Registry: [GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }})" >> $GITHUB_STEP_SUMMARY
+
+  create-release-notes:
+    name: Update Release Notes
+    runs-on: ubuntu-latest
+    needs: [validate-build, publish-npm, publish-container]
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Update release with install instructions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: context.ref.replace('refs/tags/', '')
+            });
+            
+            const installInstructions = `
+            ## 🚀 Installation & Usage
+            
+            ### npm Package
+            \`\`\`bash
+            # Install globally
+            npm install -g docsearch-mcp
+            
+            # Or use with npx
+            npx docsearch-mcp --help
+            \`\`\`
+            
+            ### Docker Container
+            \`\`\`bash
+            # Pull the image
+            docker pull ghcr.io/${{ github.repository }}:${{ needs.validate-build.outputs.version }}
+            
+            # Run the MCP server
+            docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ needs.validate-build.outputs.version }}
+            \`\`\`
+            
+            ### MCP Server Usage
+            Add to your MCP client configuration:
+            \`\`\`json
+            {
+              "mcpServers": {
+                "docsearch": {
+                  "command": "npx",
+                  "args": ["docsearch-mcp", "mcp"]
+                }
+              }
+            }
+            \`\`\`
+            `;
+            
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: (release.body || '') + installInstructions
+            });
