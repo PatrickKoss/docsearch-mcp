@@ -2,18 +2,16 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 const originalEnv = process.env;
 
+// Mock dotenv to prevent it from loading .env file
+vi.mock('dotenv/config', () => ({}));
+
 describe('Configuration', () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env = { ...originalEnv };
-    // Clear dotenv loaded variables
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.EMBEDDINGS_PROVIDER;
-    delete process.env.OPENAI_BASE_URL;
-    delete process.env.OPENAI_EMBED_MODEL;
-    delete process.env.OPENAI_EMBED_DIM;
-    delete process.env.FILE_ROOTS;
-    delete process.env.DB_PATH;
+    // Completely reset process.env to avoid dotenv influence, keeping only essential vars
+    process.env = {
+      NODE_ENV: 'test',
+    };
   });
 
   afterEach(() => {
@@ -33,10 +31,10 @@ describe('Configuration', () => {
       const { CONFIG } = await import('../src/shared/config.js');
 
       expect(CONFIG.EMBEDDINGS_PROVIDER).toBe('openai');
-      expect(CONFIG.OPENAI_API_KEY).toBe('sk-your-key'); // From actual .env file
-      expect(CONFIG.OPENAI_BASE_URL).toBe('http://192.168.0.31:1234/v1'); // From actual .env file
-      expect(CONFIG.OPENAI_EMBED_MODEL).toBe('text-embedding-qwen3-embedding-0.6b'); // From actual .env file
-      expect(CONFIG.OPENAI_EMBED_DIM).toBe(1024); // From actual .env file
+      expect(CONFIG.OPENAI_API_KEY).toBe(''); // Default empty string when no env var
+      expect(CONFIG.OPENAI_BASE_URL).toBe(''); // Default empty string when no env var
+      expect(CONFIG.OPENAI_EMBED_MODEL).toBe('text-embedding-3-small'); // Default from config
+      expect(CONFIG.OPENAI_EMBED_DIM).toBe(1536); // Default from config
       expect(CONFIG.FILE_ROOTS).toEqual(['.']);
       expect(CONFIG.DB_PATH).toBe('./data/index.db');
     });
