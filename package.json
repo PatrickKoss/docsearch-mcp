@@ -60,7 +60,7 @@
     "@types/pg": "^8.15.5",
     "better-sqlite3": "^9.4.3",
     "chokidar": "^3.6.0",
-    "commander": "^12.1.0",
+    "commander": "^14.0.0",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.2",
     "js-yaml": "^4.1.0",
