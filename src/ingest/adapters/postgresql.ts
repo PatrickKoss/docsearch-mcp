@@ -95,10 +95,31 @@ export class PostgresAdapter implements DatabaseAdapter {
       "CREATE INDEX IF NOT EXISTS idx_chunks_content_gin ON chunks USING gin(to_tsvector('english', content))",
     );
 
-    // Create vector index for embeddings
-    await this.client.query(
-      'CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_vector ON chunk_embeddings USING ivfflat (embedding vector_cosine_ops)',
-    );
+    // Note: Vector index will be created lazily in ensureVectorIndex() after embeddings exist
+  }
+
+  private async ensureVectorIndex(): Promise<void> {
+    // Check if vector index already exists
+    const indexExists = await this.client.query(`
+      SELECT 1 FROM pg_indexes 
+      WHERE indexname = 'idx_chunk_embeddings_vector'
+    `);
+
+    if (indexExists.rows.length === 0) {
+      // Only create index if we have embeddings data
+      const hasData = await this.client.query('SELECT 1 FROM chunk_embeddings LIMIT 1');
+
+      if (hasData.rows.length > 0) {
+        try {
+          await this.client.query(
+            'CREATE INDEX idx_chunk_embeddings_vector ON chunk_embeddings USING ivfflat (embedding vector_cosine_ops)',
+          );
+        } catch (error) {
+          // Ignore index creation errors, vector search might still work without the index
+          console.warn('Failed to create vector index:', error);
+        }
+      }
+    }
   }
 
   async getDocument(uri: string): Promise<{ id: number; hash: string } | null> {
@@ -242,6 +263,9 @@ export class PostgresAdapter implements DatabaseAdapter {
       `INSERT INTO chunk_embeddings (chunk_id, embedding) VALUES ${values.join(', ')} ON CONFLICT (chunk_id) DO UPDATE SET embedding = EXCLUDED.embedding`,
       params,
     );
+
+    // Ensure vector index exists after we have data
+    await this.ensureVectorIndex();
   }
 
   async keywordSearch(
