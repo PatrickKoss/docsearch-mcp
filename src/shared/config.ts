@@ -11,6 +11,10 @@ interface AppConfig {
   readonly OPENAI_EMBED_DIM: number;
   readonly TEI_ENDPOINT: string;
 
+  readonly ENABLE_IMAGE_TO_TEXT: boolean;
+  readonly IMAGE_TO_TEXT_PROVIDER: string;
+  readonly IMAGE_TO_TEXT_MODEL: string;
+
   readonly CONFLUENCE_BASE_URL: string;
   readonly CONFLUENCE_EMAIL: string;
   readonly CONFLUENCE_API_TOKEN: string;
@@ -55,6 +59,10 @@ export const CONFIG: AppConfig = {
   OPENAI_EMBED_DIM: parseInt(process.env.OPENAI_EMBED_DIM || '1536', 10),
   TEI_ENDPOINT: process.env.TEI_ENDPOINT || '',
 
+  ENABLE_IMAGE_TO_TEXT: process.env.ENABLE_IMAGE_TO_TEXT === 'true',
+  IMAGE_TO_TEXT_PROVIDER: process.env.IMAGE_TO_TEXT_PROVIDER || 'openai',
+  IMAGE_TO_TEXT_MODEL: process.env.IMAGE_TO_TEXT_MODEL || 'gpt-4o-mini',
+
   CONFLUENCE_BASE_URL: process.env.CONFLUENCE_BASE_URL || '',
   CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',
   CONFLUENCE_API_TOKEN: process.env.CONFLUENCE_API_TOKEN || '',
@@ -63,7 +71,7 @@ export const CONFIG: AppConfig = {
   FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
   FILE_INCLUDE_GLOBS: splitCsv(
     process.env.FILE_INCLUDE_GLOBS,
-    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}',
+    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf,png,jpg,jpeg,gif,svg,webp}',
   ),
   FILE_EXCLUDE_GLOBS: splitCsv(
     process.env.FILE_EXCLUDE_GLOBS,

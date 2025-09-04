@@ -12,6 +12,8 @@ export interface SearchParams {
   readonly repo?: string;
   readonly pathPrefix?: string;
   readonly mode?: SearchMode;
+  readonly includeImages?: boolean;
+  readonly imagesOnly?: boolean;
 }
 
 export async function performSearch(
@@ -25,6 +27,8 @@ export async function performSearch(
     ...(params.source && { source: params.source }),
     ...(params.repo && { repo: params.repo }),
     ...(params.pathPrefix && { pathPrefix: params.pathPrefix }),
+    ...(params.includeImages !== undefined && { includeImages: params.includeImages }),
+    ...(params.imagesOnly !== undefined && { imagesOnly: params.imagesOnly }),
   };
 
   switch (mode) {

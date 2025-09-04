@@ -44,6 +44,8 @@ interface SearchToolInput {
   readonly pathPrefix?: string | undefined;
   readonly mode?: SearchMode | undefined;
   readonly output?: OutputFormat | undefined;
+  readonly includeImages?: boolean | undefined;
+  readonly imagesOnly?: boolean | undefined;
 }
 
 const server = new McpServer({ name: 'docsearch-mcp', version: '0.1.0' });
@@ -91,6 +93,8 @@ server.registerTool(
       pathPrefix: z.string().optional(),
       mode: z.enum(['auto', 'vector', 'keyword']).optional(),
       output: z.enum(['text', 'json', 'yaml']).optional(),
+      includeImages: z.boolean().optional(),
+      imagesOnly: z.boolean().optional(),
     },
   },
   async (input: SearchToolInput) => {

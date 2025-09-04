@@ -11,6 +11,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 - **🔍 Hybrid Search**: Combines full-text search (FTS) with vector similarity for optimal results
 - **📁 Multi-Source**: Index local files (code, docs, PDFs) and Confluence spaces
 - **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
+- **🖼️ Image Search**: AI-powered image description and search for diagrams, screenshots, and charts
 - **🗄️ Database Flexibility**: Support for SQLite (local-first) and PostgreSQL (scalable)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
 - **💻 CLI Tool**: Standalone command-line interface with multiple output formats
@@ -177,8 +178,16 @@ OPENAI_EMBED_MODEL=text-embedding-3-small
 
 ```env
 FILE_ROOTS=.
-FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt,pdf}
+FILE_INCLUDE_GLOBS=**/*.{ts,js,py,md,txt,pdf,png,jpg,jpeg,gif,svg,webp}
 FILE_EXCLUDE_GLOBS=**/node_modules/**,**/dist/**
+```
+
+### Image Search (Optional)
+
+```env
+ENABLE_IMAGE_TO_TEXT=true
+IMAGE_TO_TEXT_PROVIDER=openai
+IMAGE_TO_TEXT_MODEL=gpt-4o-mini
 ```
 
 ### Database Configuration
@@ -209,6 +218,7 @@ The system automatically detects and processes different file types:
 - **Code files**: `.ts`, `.js`, `.py`, `.go`, `.rs`, `.java`, `.cpp`, `.c`, `.rb`, `.php`, `.kt`, `.swift`
 - **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`
 - **PDFs**: `.pdf` files are automatically parsed with text extraction and metadata preservation
+- **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` files with optional AI-powered description generation
 
 PDF files are processed with:
 
@@ -216,6 +226,14 @@ PDF files are processed with:
 - Metadata preservation (page count, document info)
 - Smart text normalization and chunking
 - Error handling for corrupted or encrypted files
+
+Image files support optional AI-powered description generation:
+
+- **Vision Model Integration**: Uses OpenAI vision models (or compatible APIs) to generate detailed descriptions
+- **Configurable Processing**: Enable/disable image-to-text via `ENABLE_IMAGE_TO_TEXT` environment variable
+- **Fallback Support**: Images are indexed by filename when vision processing is disabled
+- **Metadata Preservation**: Stores image dimensions, file size, and description metadata
+- **Search Integration**: Image descriptions are indexed as searchable text content
 
 ## 📖 Usage
 
@@ -238,6 +256,9 @@ All CLI flags support configuration precedence: **CLI args > Environment variabl
 | `--openai-embed-model <model>`          | `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                   |
 | `--openai-embed-dim <dimension>`        | `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension               |
 | `--tei-endpoint <url>`                  | `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint       |
+| `--enable-image-to-text`                | `ENABLE_IMAGE_TO_TEXT`       | `false`                                                       | Enable image-to-text processing          |
+| `--image-to-text-provider <provider>`   | `IMAGE_TO_TEXT_PROVIDER`     | `openai`                                                      | Image-to-text provider                   |
+| `--image-to-text-model <model>`         | `IMAGE_TO_TEXT_MODEL`        | `gpt-4o-mini`                                                 | Image-to-text model                      |
 | `--confluence-base-url <url>`           | `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                      |
 | `--confluence-email <email>`            | `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                         |
 | `--confluence-api-token <token>`        | `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                     |
@@ -308,6 +329,8 @@ docsearch search <query> [options]
 | `-p, --path-prefix <prefix>` | -       | Filter by path prefix                       |
 | `-m, --mode <mode>`          | `auto`  | Search mode: `auto`, `vector`, or `keyword` |
 | `-o, --output <format>`      | `text`  | Output format: `text`, `json`, or `yaml`    |
+| `--include-images`           | -       | Include images in search results            |
+| `--images-only`              | -       | Search only images                          |
 
 **Examples:**
 
@@ -335,6 +358,12 @@ docsearch search "React hooks" \
   --mode auto \
   --top-k 20 \
   --output json
+
+# Search including images (architecture diagrams, screenshots)
+docsearch search "user authentication flow" --include-images
+
+# Search only images for diagrams and charts
+docsearch search "system architecture" --images-only --output json
 ```
 
 #### CLI Configuration
@@ -531,6 +560,8 @@ Search indexed documents with optional output formatting.
 - `pathPrefix` (string, optional): Filter by path prefix
 - `mode` (string, optional): Search mode (`auto`, `vector`, `keyword`, default: `auto`)
 - `outputFormat` (string, optional): Output format (`text`, `json`, `yaml`, default: `text`)
+- `includeImages` (boolean, optional): Include images in search results
+- `imagesOnly` (boolean, optional): Search only images
 
 **Example:**
 
@@ -696,6 +727,10 @@ docsearch ingest files \
 
 # Search across all personal knowledge
 docsearch search "machine learning optimization" --mode auto --top-k 15
+
+# Search for diagrams and technical images
+docsearch search "neural network architecture" --include-images --top-k 10
+docsearch search "flowchart" --images-only --output json
 ```
 
 #### PDF-Heavy Workflow
@@ -737,6 +772,18 @@ docsearch search "error handling patterns" \
   --mode vector \
   --top-k 50 \
   --output json | jq '.results[] | select(.score > 0.8)'
+
+# Search for architecture diagrams and flowcharts
+docsearch search "system design diagram" \
+  --images-only \
+  --mode vector \
+  --output json
+
+# Include images when searching for UI/UX content
+docsearch search "user interface design" \
+  --include-images \
+  --path-prefix docs/ \
+  --top-k 20
 ```
 
 #### Output Format Examples

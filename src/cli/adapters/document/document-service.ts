@@ -28,9 +28,11 @@ export class DocumentServiceAdapter implements DocumentService {
       } else {
         await this.performIngest(command.source, adapter, indexer);
       }
-    } catch (error) {
-      await this.cleanup();
-      throw error;
+    } finally {
+      if (!command.watch) {
+        // Don't cleanup if watching, as the watcher needs to keep the connection alive
+        await this.cleanup();
+      }
     }
   }
 
@@ -45,6 +47,8 @@ export class DocumentServiceAdapter implements DocumentService {
         ...(command.repo && { repo: command.repo }),
         ...(command.pathPrefix && { pathPrefix: command.pathPrefix }),
         ...(command.mode && { mode: command.mode }),
+        ...(command.includeImages !== undefined && { includeImages: command.includeImages }),
+        ...(command.imagesOnly !== undefined && { imagesOnly: command.imagesOnly }),
       };
 
       const results = await performSearch(adapter, searchParams);
@@ -83,6 +87,7 @@ export class DocumentServiceAdapter implements DocumentService {
     if (source === 'file' || source === 'all') {
       console.log('Ingesting files...');
       await ingestFiles(adapter);
+      console.log('Files processed, generating embeddings...');
       await indexer.embedNewChunks();
       console.log('Files ingested.');
     }
@@ -90,6 +95,7 @@ export class DocumentServiceAdapter implements DocumentService {
     if (source === 'confluence' || source === 'all') {
       console.log('Ingesting Confluence...');
       await ingestConfluence(adapter);
+      console.log('Confluence processed, generating embeddings...');
       await indexer.embedNewChunks();
       console.log('Confluence ingested.');
     }

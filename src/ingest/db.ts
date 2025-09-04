@@ -56,7 +56,19 @@ function ensureSchema(db: DB, embeddingDim: number): void {
       content text not null,
       start_line integer,
       end_line integer,
-      token_count integer
+      token_count integer,
+      chunk_type text default 'text'
+    );
+
+    create table if not exists image_chunks(
+      id integer primary key,
+      document_id integer not null references documents(id) on delete cascade,
+      chunk_id integer not null references chunks(id) on delete cascade,
+      image_path text not null,
+      image_description text,
+      width integer,
+      height integer,
+      file_size integer
     );
 
     create virtual table if not exists chunks_fts using fts5(

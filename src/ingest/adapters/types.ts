@@ -78,4 +78,6 @@ export interface SearchFilters {
   readonly source?: string;
   readonly repo?: string;
   readonly pathPrefix?: string;
+  readonly includeImages?: boolean;
+  readonly imagesOnly?: boolean;
 }

@@ -32,6 +32,8 @@ export interface SearchCommand {
   readonly pathPrefix?: string | undefined;
   readonly mode?: 'auto' | 'vector' | 'keyword' | undefined;
   readonly output?: OutputFormat | undefined;
+  readonly includeImages?: boolean | undefined;
+  readonly imagesOnly?: boolean | undefined;
 }
 
 export interface DocumentService {

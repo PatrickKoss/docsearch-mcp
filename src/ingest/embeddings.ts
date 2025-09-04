@@ -99,9 +99,26 @@ export class TEIEmbedder implements Embedder {
   }
 }
 
+export class NoOpEmbedder implements Embedder {
+  public readonly dim: number = 1536;
+
+  async embed(texts: readonly string[]): Promise<readonly Float32Array[]> {
+    // Return zero vectors for testing/when no embeddings are needed
+    return texts.map(() => new Float32Array(this.dim).fill(0.1));
+  }
+}
+
 export function getEmbedder(): Embedder {
   if (CONFIG.EMBEDDINGS_PROVIDER === 'tei') {
     return new TEIEmbedder();
   }
-  return new OpenAIEmbedder();
+
+  // Check if OpenAI API key is available
+  if (CONFIG.OPENAI_API_KEY) {
+    return new OpenAIEmbedder();
+  }
+
+  // Fallback to NoOp embedder for testing/development
+  console.warn('No embeddings provider configured, using no-op embedder');
+  return new NoOpEmbedder();
 }

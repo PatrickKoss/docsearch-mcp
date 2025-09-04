@@ -145,7 +145,13 @@ describe('Configuration', () => {
         'yaml',
         'yml',
         'json',
-        'pdf}',
+        'pdf',
+        'png',
+        'jpg',
+        'jpeg',
+        'gif',
+        'svg',
+        'webp}',
       ]); // Default split on commas
       expect(CONFIG.FILE_EXCLUDE_GLOBS).toEqual([
         '**/{.git',

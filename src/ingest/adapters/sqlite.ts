@@ -357,6 +357,11 @@ export class SqliteAdapter implements DatabaseAdapter {
       filterConditions.push('d.path like @pathPrefix');
       params.pathPrefix = `${filters.pathPrefix}%`;
     }
+    if (filters.imagesOnly) {
+      filterConditions.push("d.lang = 'image'");
+    } else if (filters.includeImages === false) {
+      filterConditions.push("d.lang != 'image'");
+    }
 
     const filterSql = filterConditions.length ? `and ${filterConditions.join(' and ')}` : '';
 
@@ -365,8 +370,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         select c.id as chunk_id, bm25(chunks_fts) as score
         from chunks_fts
         join chunks c on c.id = chunks_fts.rowid
-        where chunks_fts match $query
-        limit $k
+        where chunks_fts match @query
+        limit @k
       )
       select kw.chunk_id, kw.score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
              c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
@@ -374,7 +379,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       join chunks c on c.id = kw.chunk_id
       join documents d on d.id = c.document_id
       where 1=1 ${filterSql}
-      limit $k
+      limit @k
     `;
 
     const stmt = this.db.prepare(sql);
@@ -404,6 +409,11 @@ export class SqliteAdapter implements DatabaseAdapter {
       filterConditions.push('d.path like @pathPrefix');
       params.pathPrefix = `${filters.pathPrefix}%`;
     }
+    if (filters.imagesOnly) {
+      filterConditions.push("d.lang = 'image'");
+    } else if (filters.includeImages === false) {
+      filterConditions.push("d.lang != 'image'");
+    }
 
     const filterSql = filterConditions.length ? `and ${filterConditions.join(' and ')}` : '';
 
@@ -411,7 +421,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       with vec as (
         select rowid, distance
         from vec_chunks
-        where embedding match $embedding and k = $k
+        where embedding match @embedding and k = @k
       )
       select m.chunk_id as chunk_id, vec.distance as score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
              c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
@@ -420,7 +430,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       join chunks c on c.id = m.chunk_id
       join documents d on d.id = c.document_id
       where 1=1 ${filterSql}
-      limit $k
+      limit @k
     `;
 
     const stmt = this.db.prepare(sql);
@@ -461,8 +471,8 @@ export class SqliteAdapter implements DatabaseAdapter {
     transaction();
   }
 
-  async rawQuery(sql: string): Promise<Record<string, unknown>[]> {
+  async rawQuery(sql: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
     const stmt = this.db.prepare(sql);
-    return stmt.all() as Record<string, unknown>[];
+    return stmt.all(params) as Record<string, unknown>[];
   }
 }

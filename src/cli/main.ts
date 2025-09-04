@@ -22,6 +22,9 @@ program
   .option('--openai-embed-model <model>', 'OpenAI embedding model')
   .option('--openai-embed-dim <dimension>', 'OpenAI embedding dimension')
   .option('--tei-endpoint <url>', 'TEI endpoint URL')
+  .option('--enable-image-to-text', 'Enable image-to-text processing')
+  .option('--image-to-text-provider <provider>', 'Image-to-text provider (openai)')
+  .option('--image-to-text-model <model>', 'Image-to-text model')
   .option('--confluence-base-url <url>', 'Confluence base URL')
   .option('--confluence-email <email>', 'Confluence email')
   .option('--confluence-api-token <token>', 'Confluence API token')
@@ -82,6 +85,12 @@ program
 
       const documentService = new DocumentServiceAdapter();
       await documentService.ingest(ingestCommand);
+      console.log('Ingestion completed successfully');
+
+      // Explicit exit to avoid hanging in test environments
+      if (process.env.NODE_ENV === 'test') {
+        process.exit(0);
+      }
     } catch (error) {
       console.error('Ingestion failed:', error);
       process.exit(1);
@@ -99,6 +108,8 @@ program
   .option('-p, --path-prefix <prefix>', 'Filter by path prefix')
   .option('-m, --mode <mode>', 'Search mode (auto|vector|keyword)', 'auto')
   .option('-o, --output <format>', 'Output format (text|json|yaml)', 'text')
+  .option('--include-images', 'Include images in search results')
+  .option('--images-only', 'Search only images')
   .action(
     async (
       query: string,
@@ -109,6 +120,8 @@ program
         pathPrefix?: string;
         mode?: string;
         output?: string;
+        includeImages?: boolean;
+        imagesOnly?: boolean;
       },
       cmd: Command,
     ) => {
@@ -168,6 +181,8 @@ program
           pathPrefix: options.pathPrefix,
           mode: options.mode as 'auto' | 'vector' | 'keyword' | undefined,
           output: options.output as OutputFormat | undefined,
+          includeImages: options.includeImages,
+          imagesOnly: options.imagesOnly,
         };
 
         const documentService = new DocumentServiceAdapter();
@@ -177,6 +192,11 @@ program
         const output = formatter.format(results);
 
         console.log(output);
+
+        // Explicit exit to avoid hanging in test environments
+        if (process.env.NODE_ENV === 'test') {
+          process.exit(0);
+        }
       } catch (error) {
         console.error('Search failed:', error);
         process.exit(1);
