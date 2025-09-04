@@ -378,4 +378,89 @@ export class PostgresAdapter implements DatabaseAdapter {
     const result = await this.client.query(sql);
     return result.rows as Record<string, unknown>[];
   }
+
+  // New incremental indexing methods
+  async updateDocumentHash(documentId: number, hash: string): Promise<void> {
+    await this.client.query('UPDATE documents SET hash = $1 WHERE id = $2', [hash, documentId]);
+  }
+
+  async insertChunk(documentId: number, chunk: ChunkInput, index: number): Promise<void> {
+    await this.client.query(
+      `INSERT INTO chunks (document_id, chunk_index, content, start_line, end_line, token_count)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        documentId,
+        index,
+        chunk.content,
+        chunk.startLine || null,
+        chunk.endLine || null,
+        chunk.tokenCount || null,
+      ],
+    );
+  }
+
+  async updateChunk(chunkId: number, chunk: ChunkInput): Promise<void> {
+    await this.client.query(
+      `UPDATE chunks 
+       SET content = $1, start_line = $2, end_line = $3, token_count = $4
+       WHERE id = $5`,
+      [
+        chunk.content,
+        chunk.startLine || null,
+        chunk.endLine || null,
+        chunk.tokenCount || null,
+        chunkId,
+      ],
+    );
+
+    // Delete existing embedding for this chunk
+    await this.deleteEmbedding(chunkId);
+  }
+
+  async deleteChunk(chunkId: number): Promise<void> {
+    await this.deleteEmbedding(chunkId);
+    await this.client.query('DELETE FROM chunks WHERE id = $1', [chunkId]);
+  }
+
+  async deleteDocumentChunks(documentId: number): Promise<void> {
+    // Delete embeddings for all chunks of this document
+    await this.client.query(
+      `DELETE FROM chunk_embeddings WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = $1)`,
+      [documentId],
+    );
+
+    await this.client.query('DELETE FROM chunks WHERE document_id = $1', [documentId]);
+  }
+
+  async getDocumentChunks(
+    documentId: number,
+  ): Promise<Array<{ id: number; content: string; startLine: number; endLine: number }>> {
+    const result = await this.client.query(
+      `SELECT id, content, start_line as "startLine", end_line as "endLine"
+       FROM chunks
+       WHERE document_id = $1
+       ORDER BY chunk_index`,
+      [documentId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      content: row.content,
+      startLine: row.startLine || 0,
+      endLine: row.endLine || 0,
+    }));
+  }
+
+  async getChunkCount(documentId: number): Promise<number> {
+    const result = await this.client.query(
+      'SELECT COUNT(*) as count FROM chunks WHERE document_id = $1',
+      [documentId],
+    );
+
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  async deleteEmbedding(chunkId: number): Promise<void> {
+    await this.client.query('DELETE FROM chunk_embeddings WHERE chunk_id = $1', [chunkId]);
+  }
 }

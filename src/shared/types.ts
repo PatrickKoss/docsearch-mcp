@@ -61,9 +61,9 @@ export interface SearchResultRow {
 
 export interface ChunkInput {
   readonly content: string;
-  readonly startLine?: number;
-  readonly endLine?: number;
-  readonly tokenCount?: number;
+  readonly startLine?: number | undefined;
+  readonly endLine?: number | undefined;
+  readonly tokenCount?: number | undefined;
 }
 
 export type DocumentInput = Omit<DocumentRow, 'id'>;

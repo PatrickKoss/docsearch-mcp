@@ -139,6 +139,11 @@ ingest-files: ## Ingest local files
 	@echo -e "$(BLUE)Ingesting local files...$(NC)"
 	pnpm dev:cli ingest files
 
+.PHONY: ingest-files-incremental
+ingest-files-incremental: ## Ingest local files with incremental indexing
+	@echo -e "$(BLUE)Ingesting local files (incremental mode)...$(NC)"
+	pnpm dev:cli ingest files --incremental
+
 .PHONY: ingest-confluence
 ingest-confluence: ## Ingest Confluence pages
 	@echo -e "$(BLUE)Ingesting Confluence pages...$(NC)"
@@ -149,10 +154,20 @@ ingest-all: ## Ingest all sources (files and confluence)
 	@echo -e "$(BLUE)Ingesting all sources...$(NC)"
 	pnpm dev:cli ingest all
 
+.PHONY: ingest-all-incremental
+ingest-all-incremental: ## Ingest all sources with incremental indexing
+	@echo -e "$(BLUE)Ingesting all sources (incremental mode)...$(NC)"
+	pnpm dev:cli ingest all --incremental
+
 .PHONY: watch
 watch: ## Watch for file changes and re-index
 	@echo -e "$(BLUE)Watching for file changes...$(NC)"
 	pnpm dev:cli ingest all --watch
+
+.PHONY: watch-incremental
+watch-incremental: ## Watch for file changes with incremental re-indexing
+	@echo -e "$(BLUE)Watching for file changes (incremental mode)...$(NC)"
+	pnpm dev:cli ingest all --watch --incremental
 
 .PHONY: search
 search: ## Search documents (usage: make search QUERY="your search query")
@@ -176,6 +191,26 @@ search-json: ## Search documents with JSON output (usage: make search-json QUERY
 clean-data: ## Clean data directory
 	@echo -e "$(YELLOW)Cleaning data directory...$(NC)"
 	rm -rf $(DATA_DIR)
+
+##@ Incremental Indexing (Performance Optimized)
+
+.PHONY: incremental-files
+incremental-files: ingest-files-incremental ## Alias for incremental file indexing
+
+.PHONY: incremental-all
+incremental-all: ingest-all-incremental ## Alias for incremental indexing of all sources
+
+.PHONY: incremental-watch
+incremental-watch: watch-incremental ## Alias for incremental file watching
+
+.PHONY: incremental-benchmark
+incremental-benchmark: ## Compare full vs incremental indexing performance
+	@echo -e "$(BLUE)Running indexing performance benchmark...$(NC)"
+	@echo -e "$(YELLOW)Testing full indexing...$(NC)"
+	@time $(MAKE) ingest-files > /dev/null 2>&1 || true
+	@echo -e "$(YELLOW)Testing incremental indexing...$(NC)"
+	@time $(MAKE) ingest-files-incremental > /dev/null 2>&1 || true
+	@echo -e "$(GREEN)Benchmark complete! Incremental should be faster on subsequent runs.$(NC)"
 
 ##@ Setup Commands
 

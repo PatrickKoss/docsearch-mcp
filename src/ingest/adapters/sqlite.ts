@@ -24,13 +24,20 @@ export class SqliteAdapter implements DatabaseAdapter {
   private getDocumentStmt!: Database.Statement;
   private upsertDocumentStmt!: Database.Statement;
   private insertChunkStmt!: Database.Statement;
+  private updateChunkStmt!: Database.Statement;
+  private deleteChunkStmt!: Database.Statement;
+  private deleteDocumentChunksStmt!: Database.Statement;
   private getChunksToEmbedStmt!: Database.Statement;
   private getChunkContentStmt!: Database.Statement;
+  private getDocumentChunksStmt!: Database.Statement;
+  private getChunkCountStmt!: Database.Statement;
   private hasChunksStmt!: Database.Statement;
   private insertVecStmt!: Database.Statement;
   private insertMapStmt!: Database.Statement;
+  private deleteEmbeddingStmt!: Database.Statement;
   private setMetaStmt!: Database.Statement;
   private getMetaStmt!: Database.Statement;
+  private updateDocumentHashStmt!: Database.Statement;
   private keywordSearchStmt!: Database.Statement;
   private vectorSearchStmt!: Database.Statement;
 
@@ -133,6 +140,16 @@ export class SqliteAdapter implements DatabaseAdapter {
       values (?, ?, ?, ?, ?, ?)
     `);
 
+    this.updateChunkStmt = this.db.prepare(`
+      update chunks
+      set content = ?, start_line = ?, end_line = ?, token_count = ?
+      where id = ?
+    `);
+
+    this.deleteChunkStmt = this.db.prepare('delete from chunks where id = ?');
+
+    this.deleteDocumentChunksStmt = this.db.prepare('delete from chunks where document_id = ?');
+
     this.getChunksToEmbedStmt = this.db.prepare(`
       select c.id, c.content
       from chunks c
@@ -149,6 +166,17 @@ export class SqliteAdapter implements DatabaseAdapter {
       where c.id = ?
     `);
 
+    this.getDocumentChunksStmt = this.db.prepare(`
+      select id, content, start_line as startLine, end_line as endLine
+      from chunks
+      where document_id = ?
+      order by chunk_index
+    `);
+
+    this.getChunkCountStmt = this.db.prepare(
+      'select count(*) as count from chunks where document_id = ?',
+    );
+
     this.hasChunksStmt = this.db.prepare(
       'select count(*) as count from chunks where document_id = ?',
     );
@@ -157,6 +185,12 @@ export class SqliteAdapter implements DatabaseAdapter {
     this.insertMapStmt = this.db.prepare(
       'insert or replace into chunk_vec_map (chunk_id, vec_rowid) values (?, ?)',
     );
+
+    this.deleteEmbeddingStmt = this.db.prepare(`
+      delete from chunk_vec_map where chunk_id = ?
+    `);
+
+    this.updateDocumentHashStmt = this.db.prepare('update documents set hash = ? where id = ?');
 
     this.setMetaStmt = this.db.prepare(
       'insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value',
@@ -217,6 +251,46 @@ export class SqliteAdapter implements DatabaseAdapter {
     transaction();
   }
 
+  async insertChunk(documentId: number, chunk: ChunkInput, index: number): Promise<void> {
+    this.insertChunkStmt.run(
+      documentId,
+      index,
+      chunk.content,
+      chunk.startLine ?? null,
+      chunk.endLine ?? null,
+      chunk.tokenCount ?? null,
+    );
+  }
+
+  async updateChunk(chunkId: number, chunk: ChunkInput): Promise<void> {
+    this.updateChunkStmt.run(
+      chunk.content,
+      chunk.startLine ?? null,
+      chunk.endLine ?? null,
+      chunk.tokenCount ?? null,
+      chunkId,
+    );
+
+    await this.deleteEmbedding(chunkId);
+  }
+
+  async deleteChunk(chunkId: number): Promise<void> {
+    await this.deleteEmbedding(chunkId);
+    this.deleteChunkStmt.run(chunkId);
+  }
+
+  async deleteDocumentChunks(documentId: number): Promise<void> {
+    const chunks = await this.getDocumentChunks(documentId);
+    for (const chunk of chunks) {
+      await this.deleteEmbedding(chunk.id);
+    }
+    this.deleteDocumentChunksStmt.run(documentId);
+  }
+
+  async updateDocumentHash(documentId: number, hash: string): Promise<void> {
+    this.updateDocumentHashStmt.run(hash, documentId);
+  }
+
   async getChunksToEmbed(limit: number = 10000): Promise<ChunkToEmbed[]> {
     return this.getChunksToEmbedStmt.all(limit) as ChunkToEmbed[];
   }
@@ -229,6 +303,26 @@ export class SqliteAdapter implements DatabaseAdapter {
   async hasChunks(documentId: number): Promise<boolean> {
     const row = this.hasChunksStmt.get(documentId) as { count: number };
     return row.count > 0;
+  }
+
+  async getDocumentChunks(
+    documentId: number,
+  ): Promise<Array<{ id: number; content: string; startLine: number; endLine: number }>> {
+    return this.getDocumentChunksStmt.all(documentId) as Array<{
+      id: number;
+      content: string;
+      startLine: number;
+      endLine: number;
+    }>;
+  }
+
+  async getChunkCount(documentId: number): Promise<number> {
+    const row = this.getChunkCountStmt.get(documentId) as { count: number };
+    return row.count;
+  }
+
+  async deleteEmbedding(chunkId: number): Promise<void> {
+    this.deleteEmbeddingStmt.run(chunkId);
   }
 
   async insertEmbeddings(chunks: Array<{ id: number; embedding: number[] }>): Promise<void> {

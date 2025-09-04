@@ -39,15 +39,25 @@ export interface DatabaseAdapter {
   // Document operations
   getDocument(uri: string): Promise<{ id: number; hash: string } | null>;
   upsertDocument(doc: DocumentInput): Promise<number>;
+  updateDocumentHash(documentId: number, hash: string): Promise<void>;
 
   // Chunk operations
   insertChunks(documentId: number, chunks: readonly ChunkInput[]): Promise<void>;
+  insertChunk(documentId: number, chunk: ChunkInput, index: number): Promise<void>;
+  updateChunk(chunkId: number, chunk: ChunkInput): Promise<void>;
+  deleteChunk(chunkId: number): Promise<void>;
+  deleteDocumentChunks(documentId: number): Promise<void>;
   getChunksToEmbed(limit?: number): Promise<ChunkToEmbed[]>;
   getChunkContent(chunkId: number): Promise<ChunkContent | null>;
+  getDocumentChunks(
+    documentId: number,
+  ): Promise<Array<{ id: number; content: string; startLine: number; endLine: number }>>;
+  getChunkCount(documentId: number): Promise<number>;
   hasChunks(documentId: number): Promise<boolean>;
 
   // Vector operations
   insertEmbeddings(chunks: Array<{ id: number; embedding: number[] }>): Promise<void>;
+  deleteEmbedding(chunkId: number): Promise<void>;
 
   // Search operations
   keywordSearch(query: string, limit: number, filters: SearchFilters): Promise<SearchResult[]>;
