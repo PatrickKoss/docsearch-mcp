@@ -11,33 +11,62 @@ This is a local-first document search and indexing system with both a CLI tool a
 ```bash
 # Setup
 make setup                   # Install dependencies and setup .env
-pnpm i                       # Install dependencies only
+make install                 # Install dependencies only
+pnpm i                       # Install dependencies only (alternative)
 cp .env.example .env         # Set up environment variables
 
-# CLI Tool
-pnpm dev:cli                 # Start CLI in development mode
-pnpm start:cli               # Run built CLI
+# Development Servers
+make dev                     # Start MCP development server
+make dev-cli                 # Start CLI in development mode
+pnpm dev:cli                 # Start CLI in development mode (alternative)
+pnpm dev:mcp                 # Start MCP server in development (alternative)
 
-# Data ingestion (CLI)
-pnpm dev:cli ingest files    # Index local files via CLI
-pnpm dev:cli ingest confluence # Index Confluence pages via CLI
-pnpm dev:cli ingest all -w   # Index all sources with file watching
+# Build Commands
+make build                   # Build the project
+make clean                   # Clean all generated files (node_modules, data, dist)
+make clean-dist              # Clean build directory only
+pnpm build                   # Build TypeScript (alternative)
 
-# Search (CLI)
-pnpm dev:cli search "query"  # Search documents via CLI
-pnpm dev:cli search "test" -o json # Search with JSON output
-
-# Data ingestion (legacy)
-pnpm dev:ingest files        # Index local files
-pnpm dev:ingest confluence   # Index Confluence pages
-pnpm dev:ingest watch        # Watch for file changes and re-index
-
-# MCP Server
-pnpm dev:mcp                 # Start MCP server in development
-pnpm build                   # Build TypeScript
-pnpm start:mcp               # Start built MCP server
+# Production
+make start                   # Start production MCP server
+make start-cli               # Start CLI in production mode
+pnpm start:mcp               # Start built MCP server (alternative)
+pnpm start:cli               # Run built CLI (alternative)
 
 # Quality Assurance
+make test                    # Run tests
+make test-run                # Run tests once
+make test-ui                 # Run tests with UI
+make test-coverage           # Run tests with coverage
+make test-unit               # Run unit tests only
+make test-integration        # Run integration tests (requires Docker)
+make lint                    # Run linter, formatter, and typecheck (source only)
+make lint-fix                # Run linter with auto-fix
+make format                  # Format code with Prettier
+make format-check            # Check code formatting
+make typecheck               # Run TypeScript type checking (all files)
+make typecheck-src           # Run TypeScript type checking (source only)
+make check-all               # Run all quality checks (lint, typecheck, unit tests)
+
+# Data Management
+make ingest-files            # Ingest local files
+make ingest-files-incremental # Ingest local files with incremental indexing
+make ingest-confluence       # Ingest Confluence pages
+make ingest-all              # Ingest all sources (files and confluence)
+make ingest-all-incremental  # Ingest all sources with incremental indexing
+make watch                   # Watch for file changes and re-index
+make watch-incremental       # Watch for file changes with incremental re-indexing
+make search QUERY="text"     # Search documents
+make search-json QUERY="text" # Search documents with JSON output
+make clean-data              # Clean data directory
+
+# Incremental Indexing (Performance Optimized)
+make incremental-files       # Alias for incremental file indexing
+make incremental-all         # Alias for incremental indexing of all sources
+make incremental-watch       # Alias for incremental file watching
+make incremental-benchmark   # Compare full vs incremental indexing performance
+
+# Alternative pnpm commands
 pnpm test                    # Run tests in watch mode
 pnpm test:run                # Run tests once
 pnpm test:ui                 # Run tests with UI
@@ -47,10 +76,15 @@ pnpm lint:fix                # Run ESLint with auto-fix
 pnpm format                  # Format code with Prettier
 pnpm typecheck               # Run TypeScript type checking
 
-# Make commands (alternative workflow)
+# CLI Tool (direct pnpm usage)
+pnpm dev:cli ingest files    # Index local files via CLI
+pnpm dev:cli ingest confluence # Index Confluence pages via CLI
+pnpm dev:cli ingest all --watch # Index all sources with file watching
+pnpm dev:cli search "query"  # Search documents via CLI
+pnpm dev:cli search "test" --output json # Search with JSON output
+
+# Help
 make help                    # Show all available make commands
-make check-all              # Run linting, type checking, and tests
-make dev                    # Start MCP development server
 ```
 
 ## Architecture
