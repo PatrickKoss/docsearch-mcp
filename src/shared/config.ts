@@ -19,6 +19,9 @@ interface AppConfig {
   readonly CONFLUENCE_EMAIL: string;
   readonly CONFLUENCE_API_TOKEN: string;
   readonly CONFLUENCE_SPACES: readonly string[];
+  readonly CONFLUENCE_PARENT_PAGES: readonly string[];
+  readonly CONFLUENCE_TITLE_INCLUDES: readonly string[];
+  readonly CONFLUENCE_TITLE_EXCLUDES: readonly string[];
 
   readonly FILE_ROOTS: readonly string[];
   readonly FILE_INCLUDE_GLOBS: readonly string[];
@@ -67,6 +70,9 @@ export const CONFIG: AppConfig = {
   CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',
   CONFLUENCE_API_TOKEN: process.env.CONFLUENCE_API_TOKEN || '',
   CONFLUENCE_SPACES: splitCsv(process.env.CONFLUENCE_SPACES, ''),
+  CONFLUENCE_PARENT_PAGES: splitCsv(process.env.CONFLUENCE_PARENT_PAGES, ''),
+  CONFLUENCE_TITLE_INCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_INCLUDES, ''),
+  CONFLUENCE_TITLE_EXCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_EXCLUDES, ''),
 
   FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
   FILE_INCLUDE_GLOBS: splitCsv(

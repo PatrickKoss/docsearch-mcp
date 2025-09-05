@@ -13,6 +13,9 @@ vi.mock('../../src/shared/config.js', () => ({
     CONFLUENCE_EMAIL: 'test@example.com',
     CONFLUENCE_API_TOKEN: 'test-token',
     CONFLUENCE_SPACES: ['PROJ', 'DOCS'],
+    CONFLUENCE_PARENT_PAGES: [],
+    CONFLUENCE_TITLE_INCLUDES: [],
+    CONFLUENCE_TITLE_EXCLUDES: [],
   },
 }));
 
@@ -76,6 +79,9 @@ describe('Confluence Source Ingestion', () => {
         CONFLUENCE_EMAIL: '',
         CONFLUENCE_API_TOKEN: '',
         CONFLUENCE_SPACES: [],
+        CONFLUENCE_PARENT_PAGES: [],
+        CONFLUENCE_TITLE_INCLUDES: [],
+        CONFLUENCE_TITLE_EXCLUDES: [],
       });
 
       await ingestConfluence(adapter);

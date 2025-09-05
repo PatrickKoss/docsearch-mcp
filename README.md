@@ -209,7 +209,24 @@ CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
 CONFLUENCE_EMAIL=your@email.com
 CONFLUENCE_API_TOKEN=your_confluence_token
 CONFLUENCE_SPACES=SPACE1,SPACE2
+
+# Advanced filtering (all optional)
+# Filter by parent page IDs - only index pages under these parent pages
+CONFLUENCE_PARENT_PAGES=12345678,87654321
+
+# Title patterns to include (supports * wildcards)
+CONFLUENCE_TITLE_INCLUDES=API*,User Guide,*Documentation*
+
+# Title patterns to exclude (supports * wildcards)
+CONFLUENCE_TITLE_EXCLUDES=Draft*,*Archive*,Test*
 ```
+
+**Confluence Filtering Options:**
+
+- **Parent Page Filtering**: Specify page IDs to only index pages within specific folder hierarchies
+- **Title Include Patterns**: Define patterns to only index pages with matching titles
+- **Title Exclude Patterns**: Define patterns to skip pages with matching titles
+- **Wildcard Support**: Use `*` for flexible pattern matching (e.g., `API*` matches any title starting with "API")
 
 ### Supported File Types
 
