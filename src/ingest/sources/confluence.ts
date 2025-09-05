@@ -108,7 +108,7 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
 
   if (CONFIG.CONFLUENCE_PARENT_PAGES.length > 0) {
     allowedPageIds = new Set<string>();
-    console.log('Collecting pages under parent pages:', CONFIG.CONFLUENCE_PARENT_PAGES);
+    console.info('Collecting pages under parent pages:', CONFIG.CONFLUENCE_PARENT_PAGES);
 
     for (const parentPageRef of CONFIG.CONFLUENCE_PARENT_PAGES) {
       try {
@@ -116,7 +116,7 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
         if (parentPageId) {
           const childIds = await getChildPageIds(parentPageId);
           childIds.forEach((id) => allowedPageIds?.add(id));
-          console.log(`Found ${childIds.size} pages under parent ${parentPageId}`);
+          console.info(`Found ${childIds.size} pages under parent ${parentPageId}`);
         }
       } catch (e) {
         console.warn(`Failed to get children for parent page ${parentPageRef}:`, e);
@@ -161,7 +161,7 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
 
         if (!shouldIncludePage(title)) {
           skippedCount++;
-          console.log(`Skipping page "${title}" due to title filters`);
+          console.info(`Skipping page "${title}" due to title filters`);
           continue;
         }
 
@@ -206,7 +206,7 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
       start += limit;
     }
 
-    console.log(`Space ${space}: Processed ${processedCount} pages, skipped ${skippedCount}`);
+    console.info(`Space ${space}: Processed ${processedCount} pages, skipped ${skippedCount}`);
     await indexer.setMeta(metaKey, new Date().toISOString());
   }
 }
