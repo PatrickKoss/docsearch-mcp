@@ -273,7 +273,13 @@ describe('CLI Image Search Integration', () => {
 
       expect(result.exitCode).toBe(0);
 
-      const output = JSON.parse(result.stdout);
+      // Extract JSON from output (ignore dotenv messages)
+      const lines = result.stdout.split('\n');
+      const jsonStart = lines.findIndex((line) => line.trim().startsWith('{'));
+      const jsonLines = lines.slice(jsonStart);
+      const jsonOutput = jsonLines.join('\n').trim();
+
+      const output = JSON.parse(jsonOutput);
       expect(output.results).toBeDefined();
       expect(output.results.length).toBeLessThanOrEqual(5);
 

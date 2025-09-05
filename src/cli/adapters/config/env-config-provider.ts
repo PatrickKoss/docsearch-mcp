@@ -45,7 +45,7 @@ export class EnvConfigProvider implements ConfigurationProvider {
 
     for (const envFile of envFiles) {
       if (fs.existsSync(envFile)) {
-        dotenv.config({ path: envFile });
+        dotenv.config({ path: envFile, debug: false });
         break; // Use first found env file
       }
     }

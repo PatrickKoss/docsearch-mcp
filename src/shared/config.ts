@@ -1,4 +1,7 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load environment variables silently
+dotenv.config({ processEnv: {}, override: false, debug: false });
 
 type EmbeddingsProvider = 'openai' | 'tei';
 type DatabaseType = 'sqlite' | 'postgresql';

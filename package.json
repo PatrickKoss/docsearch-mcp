@@ -1,6 +1,6 @@
 {
   "name": "docsearch-mcp",
-  "version": "0.1.0",
+  "version": "v0.0.1",
   "description": "MCP server and CLI tool for local document search with hybrid semantic+keyword search across PDFs, files, and Confluence",
   "keywords": [
     "mcp",
@@ -56,29 +56,29 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.4",
+    "@modelcontextprotocol/sdk": "^1.17.5",
     "@types/pg": "^8.15.5",
-    "better-sqlite3": "^9.4.3",
-    "chokidar": "^3.6.0",
-    "commander": "^12.1.0",
-    "dotenv": "^16.4.5",
-    "fast-glob": "^3.3.2",
+    "better-sqlite3": "12.2.0",
+    "chokidar": "^4.0.3",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.2",
+    "fast-glob": "^3.3.3",
     "js-yaml": "^4.1.0",
-    "openai": "^4.59.0",
+    "openai": "^5.19.1",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
     "pgvector": "^0.2.1",
-    "sqlite-vec": "^0.1.7-alpha.2",
-    "turndown": "^7.2.0",
-    "undici": "^6.19.8",
-    "zod": "^3.23.8"
+    "sqlite-vec": "0.1.7-alpha.2",
+    "turndown": "^7.2.1",
+    "undici": "^6.21.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
     "@testcontainers/postgresql": "^11.5.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.3.1",
     "@types/pdf-parse": "^1.1.5",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
@@ -91,8 +91,8 @@
     "husky": "^9.1.7",
     "prettier": "^3.6.2",
     "testcontainers": "^11.5.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
 }
