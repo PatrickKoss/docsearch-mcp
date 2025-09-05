@@ -20,7 +20,7 @@ COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies
 FROM base AS deps
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile --prod=false --ignore-scripts
 
 # Build stage
 FROM base AS builder
@@ -33,7 +33,7 @@ RUN pnpm run build
 # Production dependencies
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Final production image
 FROM node:20-alpine AS runtime
@@ -64,7 +64,7 @@ VOLUME ["/app/data"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node dist/src/server/mcp.js --help || exit 1
+    CMD node dist/server/mcp.js --help || exit 1
 
 # Expose port for MCP server (if running in server mode)
 EXPOSE 3000
@@ -73,4 +73,4 @@ EXPOSE 3000
 ENTRYPOINT ["dumb-init", "--"]
 
 # Default command (can be overridden)
-CMD ["node", "dist/src/server/mcp.js"]
+CMD ["node", "dist/server/mcp.js"]

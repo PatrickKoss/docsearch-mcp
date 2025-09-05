@@ -17,9 +17,9 @@
   },
   "author": "Patrick Koss <pati.koss@gmx.de>",
   "license": "MIT",
-  "main": "dist/src/server/mcp.js",
+  "main": "dist/server/mcp.js",
   "bin": {
-    "docsearch-mcp": "dist/src/cli/main.js"
+    "docsearch-mcp": "dist/cli/main.js"
   },
   "files": [
     "dist/",
@@ -36,9 +36,9 @@
     "dev:ingest": "tsx src/ingest/cli.ts",
     "dev:mcp": "tsx src/server/mcp.ts",
     "dev:cli": "tsx src/cli/main.ts",
-    "start:mcp": "node dist/src/server/mcp.js",
-    "start:ingest": "node dist/src/ingest/cli.js",
-    "start:cli": "node dist/src/cli/main.js",
+    "start:mcp": "node dist/server/mcp.js",
+    "start:ingest": "node dist/ingest/cli.js",
+    "start:cli": "node dist/cli/main.js",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
