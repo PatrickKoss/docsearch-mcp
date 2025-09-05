@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'fs';
+
 import { Command } from 'commander';
 
 import { EnvConfigProvider } from './adapters/config/env-config-provider.js';
@@ -11,7 +13,15 @@ import type { IngestCommand, OutputFormat, SearchCommand } from './domain/ports.
 
 const program = new Command();
 
-program.name('docsearch').description('Document search and indexing CLI').version('0.1.0');
+// Read version from package.json
+const packageJson = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+);
+
+program
+  .name('docsearch')
+  .description('Document search and indexing CLI')
+  .version(packageJson.version);
 
 // Global options
 program

@@ -51,7 +51,7 @@
     "format:check": "prettier --check '**/*.{ts,tsx,js,jsx,json,md}'",
     "typecheck": "tsc --noEmit",
     "typecheck:src": "tsc --noEmit --project tsconfig.src.json",
-    "prepare": "husky",
+    "prepare": "command -v husky >/dev/null 2>&1 && husky || true",
     "prepublishOnly": "npm run build",
     "prepack": "npm run build"
   },

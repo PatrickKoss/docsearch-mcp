@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -48,7 +50,12 @@ interface SearchToolInput {
   readonly imagesOnly?: boolean | undefined;
 }
 
-const server = new McpServer({ name: 'docsearch-mcp', version: '0.1.0' });
+// Read version from package.json
+const packageJson = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+);
+
+const server = new McpServer({ name: 'docsearch-mcp', version: packageJson.version });
 
 // Register ingestion tools
 registerIngestTools(server);
