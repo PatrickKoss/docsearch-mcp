@@ -36,7 +36,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Final production image
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 # Install runtime dependencies
 RUN apk add --no-cache \

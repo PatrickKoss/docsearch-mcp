@@ -22,6 +22,8 @@ DATA_DIR := data
 install: ## Install dependencies
 	@echo -e "$(BLUE)Installing dependencies...$(NC)"
 	pnpm install
+	@echo -e "$(BLUE)Building native dependencies...$(NC)"
+	pnpm rebuild
 
 .PHONY: dev
 dev: ## Start development server for MCP
@@ -214,8 +216,22 @@ incremental-benchmark: ## Compare full vs incremental indexing performance
 
 ##@ Setup Commands
 
+.PHONY: check-system
+check-system: ## Check system dependencies
+	@echo -e "$(BLUE)Checking system dependencies...$(NC)"
+	@which node > /dev/null || (echo -e "$(RED)Error: Node.js not found$(NC)" && exit 1)
+	@which pnpm > /dev/null || (echo -e "$(RED)Error: pnpm not found$(NC)" && exit 1)
+	@echo -e "$(GREEN)System dependencies OK$(NC)"
+
+.PHONY: rebuild-native
+rebuild-native: check-system ## Rebuild native dependencies (like better-sqlite3)
+	@echo -e "$(BLUE)Rebuilding native dependencies...$(NC)"
+	@echo -e "$(YELLOW)This may take a few minutes...$(NC)"
+	pnpm rebuild
+	@echo -e "$(GREEN)Native dependencies rebuilt successfully$(NC)"
+
 .PHONY: setup
-setup: install ## Setup the project for development
+setup: install rebuild-native ## Setup the project for development
 	@echo -e "$(BLUE)Setting up project...$(NC)"
 	@if [ ! -f .env ]; then \
 		echo -e "$(YELLOW)Creating .env file from template...$(NC)"; \
