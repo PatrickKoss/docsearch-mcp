@@ -24,7 +24,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 
 ### Prerequisites
 
-- Node.js 18+ (for local development)
+- Node.js 22+ (for local development)
 - Docker and Docker Compose (for containerized deployment)
 - npm/pnpm/yarn (for local development)
 
