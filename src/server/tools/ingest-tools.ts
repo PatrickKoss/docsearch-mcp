@@ -125,7 +125,7 @@ async function getIndexStats(adapter: DatabaseAdapter, detailed: boolean) {
         COUNT(*) as documents,
         SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) as chunks
       FROM documents d
-      LEFT JOIN chunks c ON d.doc_id = c.doc_id
+      LEFT JOIN chunks c ON d.id = c.doc_id
       GROUP BY source
     `);
 
