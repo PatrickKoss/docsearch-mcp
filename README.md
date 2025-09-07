@@ -108,10 +108,22 @@ docsearch-mcp mcp
 #### Docker Usage
 
 ```bash
-# Run with Docker (using published image)
-docker run -v ./documents:/app/documents -v ./data:/app/data ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+# Run with official Docker image
+docker run --rm \
+  -v ./documents:/app/documents \
+  -v docsearch-data:/app/data \
+  --env-file .env \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
 
-# Or for development with docker-compose
+# Run CLI commands with Docker
+docker run --rm \
+  -v ./documents:/app/documents \
+  -v docsearch-data:/app/data \
+  --env-file .env \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1 \
+  npx docsearch-mcp search "your query"
+
+# For development (requires cloning repo)
 docker-compose up -d docsearch-mcp
 ```
 
@@ -119,25 +131,37 @@ docker-compose up -d docsearch-mcp
 
 ### Docker Configuration
 
-When using Docker, create a `.env` file in the project root:
+When using the official Docker image, create a `.env` file:
 
 ```bash
-cp .env.example .env
+echo "OPENAI_API_KEY=your-openai-key" > .env
+echo "FILE_ROOTS=/app/documents" >> .env
 ```
 
 Key considerations for Docker deployment:
 
-- **Document Volume**: Place your documents in the `./documents` directory, which gets mounted to `/app/documents` in the container
-- **Data Persistence**: The SQLite database persists in the `docsearch-data` Docker volume
-- **Network Access**: PostgreSQL and TEI services are available via Docker network
-- **Environment Variables**: All configuration is passed via environment variables
+- **Document Volume**: Mount your documents directory to `/app/documents` in the container
+- **Data Persistence**: Use a Docker volume for `/app/data` to persist the SQLite database
+- **Environment Variables**: Pass configuration via `.env` file or environment variables
+- **Official Image**: Use `ghcr.io/patrickkoss/docsearch-mcp:v0.0.1` for production deployments
 
-#### Docker Compose Profiles
+#### Using the Official Docker Image
 
-- **Default**: Runs MCP server with SQLite database
-- **postgres**: Adds PostgreSQL database (`--profile postgres`)
-- **tei**: Adds local Text Embeddings Inference server (`--profile tei`)
-- **cli**: Enables CLI service for manual commands (`--profile cli`)
+```bash
+# Basic usage
+docker run --rm \
+  -v ./documents:/app/documents \
+  -v docsearch-data:/app/data \
+  --env-file .env \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+
+# For MCP server integration
+docker run -d --name docsearch-mcp \
+  -v ./documents:/app/documents \
+  -v docsearch-data:/app/data \
+  --env-file .env \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+```
 
 ### Local Development Configuration
 
@@ -446,20 +470,7 @@ All configuration options are passed via environment variables to the MCP server
 
 #### Docker Integration
 
-##### Method 1: Direct Docker Execution
-
-```json
-{
-  "mcpServers": {
-    "docsearch": {
-      "command": "docker",
-      "args": ["exec", "-i", "docsearch-mcp", "node", "dist/src/server/mcp.js"]
-    }
-  }
-}
-```
-
-##### Method 2: Docker Run (if container not running)
+##### Method 1: Direct Docker Run
 
 ```json
 {
@@ -476,10 +487,40 @@ All configuration options are passed via environment variables to the MCP server
         "docsearch-data:/app/data",
         "--env-file",
         ".env",
-        "docsearch-mcp",
-        "node",
-        "dist/src/server/mcp.js"
+        "ghcr.io/patrickkoss/docsearch-mcp:v0.0.1"
       ]
+    }
+  }
+}
+```
+
+##### Method 2: Using Docker Compose
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+services:
+  docsearch-mcp:
+    image: ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+    volumes:
+      - ./documents:/app/documents
+      - docsearch-data:/app/data
+    env_file:
+      - .env
+    stdin_open: true
+volumes:
+  docsearch-data:
+```
+
+Then configure MCP:
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "docker",
+      "args": ["exec", "-i", "docsearch-mcp", "node", "dist/src/server/mcp.js"]
     }
   }
 }
@@ -625,21 +666,27 @@ npx docsearch-mcp mcp
 
 ```bash
 # 1. Setup production environment
-cp .env.example .env
-# Edit .env with production values
+echo "OPENAI_API_KEY=sk-your-key" > .env
+echo "FILE_ROOTS=/app/documents" >> .env
+# Add other configuration as needed
 
 # 2. Create documents directory
 mkdir -p documents
 cp -r /path/to/your/docs/* documents/
 
-# 3. Start with PostgreSQL
-docker-compose --profile postgres up -d
+# 3. Run the official Docker image
+docker run -d \
+  --name docsearch-mcp \
+  -v $(pwd)/documents:/app/documents \
+  -v docsearch-data:/app/data \
+  --env-file .env \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
 
 # 4. Index documents
-docker-compose run --rm docsearch-cli pnpm start:cli ingest all
+docker exec docsearch-mcp npx docsearch-mcp ingest all
 
 # 5. Test search
-docker-compose run --rm docsearch-cli pnpm start:cli search "authentication" -o json
+docker exec docsearch-mcp npx docsearch-mcp search "authentication" -o json
 ```
 
 ### Common Use Cases
