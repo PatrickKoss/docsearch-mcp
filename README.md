@@ -20,46 +20,50 @@ A local-first document search and indexing system that provides hybrid semantic 
 - **📊 Multiple Output Formats**: Text, JSON, and YAML output for search results
 - **🔒 Secure**: API keys and sensitive data stay on your machine
 
-## 🚀 Quick Start
+## 🚀 Installation & Usage
 
-### Prerequisites
-
-- Node.js 22+ (for local development)
-- Docker and Docker Compose (for containerized deployment)
-- npm/pnpm/yarn (for local development)
-
-### Installation Options
-
-#### Option 1: Docker (Recommended for Production)
+### npm Package
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/docsearch-mcp.git
-cd docsearch-mcp
+# Install globally
+npm install -g docsearch-mcp
 
-# Setup environment
-cp .env.example .env
-# Edit .env with your API keys and configuration
-
-# Create documents directory for local files
-mkdir -p documents
-
-# Start with Docker Compose (SQLite by default)
-docker-compose up -d docsearch-mcp
-
-# Or start with PostgreSQL
-docker-compose --profile postgres up -d
-
-# For local embeddings with TEI instead of OpenAI
-docker-compose --profile tei up -d tei
-# Then update .env: EMBEDDINGS_PROVIDER=tei, TEI_ENDPOINT=http://localhost:8080/embeddings
+# Or use with npx
+npx docsearch-mcp --help
 ```
 
-#### Option 2: Local Development
+### Docker Container
+
+```bash
+# Pull the image
+docker pull ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+
+# Run the MCP server
+docker run -p 3000:3000 ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+```
+
+### MCP Server Usage
+
+Add to your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"]
+    }
+  }
+}
+```
+
+### Local Development Setup (Optional)
+
+For development or customization:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/docsearch-mcp.git
+git clone https://github.com/patrickkoss/docsearch-mcp.git
 cd docsearch-mcp
 
 # Quick setup with Make
@@ -73,69 +77,42 @@ cp .env.example .env
 
 ### Basic Usage
 
-#### Docker Usage
-
-```bash
-# Ingest documents using Docker
-docker-compose run --rm docsearch-cli pnpm start:cli ingest files
-docker-compose run --rm docsearch-cli pnpm start:cli ingest confluence
-docker-compose run --rm docsearch-cli pnpm start:cli ingest all
-
-# Search documents using Docker
-docker-compose run --rm docsearch-cli pnpm start:cli search "your query"
-docker-compose run --rm docsearch-cli pnpm start:cli search "typescript" -k 5 -o json
-
-# Interactive CLI access
-docker-compose exec docsearch-cli sh
-```
-
-#### CLI Tool (Local Development)
+#### CLI Tool
 
 ```bash
 # Ingest documents
-pnpm dev:cli ingest files              # Index local files
-pnpm dev:cli ingest confluence         # Index Confluence pages
-pnpm dev:cli ingest all --watch        # Index all sources with file watching
+docsearch-mcp ingest files              # Index local files
+docsearch-mcp ingest confluence         # Index Confluence pages
+docsearch-mcp ingest all --watch        # Index all sources with file watching
 
 # Search documents
-pnpm dev:cli search "your query"       # Basic search
-pnpm dev:cli search "typescript" -k 5 -o json  # JSON output, top 5 results
-pnpm dev:cli search "API docs" -s confluence   # Search only Confluence
+docsearch-mcp search "your query"       # Basic search
+docsearch-mcp search "typescript" -k 5 -o json  # JSON output, top 5 results
+docsearch-mcp search "API docs" -s confluence   # Search only Confluence
 
 # Get help
-pnpm dev:cli --help
-pnpm dev:cli search --help
+docsearch-mcp --help
+docsearch-mcp search --help
 ```
 
 #### MCP Server
 
-##### Docker (Recommended)
-
 ```bash
-# The MCP server starts automatically with docker-compose
-docker-compose up -d docsearch-mcp
+# Run the MCP server directly
+npx docsearch-mcp mcp
 
-# Check logs
-docker-compose logs -f docsearch-mcp
-
-# Stop the server
-docker-compose down
+# Or if installed globally
+docsearch-mcp mcp
 ```
 
-##### Local Development
+#### Docker Usage
 
 ```bash
-# Using Make (recommended)
-make ingest-files              # Index your local files
-make ingest-confluence         # Index Confluence pages (optional)
-make dev                       # Start development MCP server
-make start                     # Build and start production server
+# Run with Docker (using published image)
+docker run -v ./documents:/app/documents -v ./data:/app/data ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
 
-# Or using npm scripts directly
-pnpm dev:ingest files
-pnpm dev:ingest confluence
-pnpm dev:mcp
-pnpm build && pnpm start:mcp
+# Or for development with docker-compose
+docker-compose up -d docsearch-mcp
 ```
 
 ## ⚙️ Configuration
@@ -432,19 +409,20 @@ All configuration options are passed via environment variables to the MCP server
 | `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                     |
 | `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string             |
 
-#### Local Development Setup
+#### Quick Setup
 
-1. **Build the project:**
+1. **Install the package:**
 
    ```bash
-   pnpm build
+   npm install -g docsearch-mcp
    ```
 
 2. **Create your configuration:**
 
    ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and settings
+   # Create a .env file in your project directory
+   echo "OPENAI_API_KEY=your-openai-key" > .env
+   echo "FILE_ROOTS=." >> .env
    ```
 
 3. **Add to Claude Code MCP settings:**
@@ -453,8 +431,8 @@ All configuration options are passed via environment variables to the MCP server
    {
      "mcpServers": {
        "docsearch": {
-         "command": "node",
-         "args": ["/absolute/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+         "command": "npx",
+         "args": ["docsearch-mcp", "mcp"],
          "env": {
            "OPENAI_API_KEY": "your-openai-key",
            "EMBEDDINGS_PROVIDER": "openai",
@@ -515,8 +493,8 @@ All configuration options are passed via environment variables to the MCP server
 {
   "mcpServers": {
     "docsearch-work": {
-      "command": "node",
-      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/work/projects/frontend,/work/projects/backend",
@@ -527,8 +505,8 @@ All configuration options are passed via environment variables to the MCP server
       }
     },
     "docsearch-personal": {
-      "command": "node",
-      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/home/user/projects,/home/user/documents",
@@ -547,8 +525,8 @@ All configuration options are passed via environment variables to the MCP server
 {
   "mcpServers": {
     "docsearch": {
-      "command": "node",
-      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "DB_TYPE": "postgresql",
@@ -623,29 +601,24 @@ The server also provides chunk resources via URIs:
 
 ### Complete Setup Workflows
 
-#### Local Development Workflow
+#### Quick Setup Workflow
 
 ```bash
-# 1. Clone and setup
-git clone https://github.com/yourusername/docsearch-mcp.git
-cd docsearch-mcp
-make setup
+# 1. Install globally
+npm install -g docsearch-mcp
 
 # 2. Configure with your API key
-echo "OPENAI_API_KEY=sk-your-key-here" >> .env
+echo "OPENAI_API_KEY=sk-your-key-here" > .env
 echo "FILE_ROOTS=.,../other-project" >> .env
 
 # 3. Index your documents
-pnpm dev:cli ingest all --watch &
+docsearch-mcp ingest all --watch &
 
 # 4. Test search
-pnpm dev:cli search "how to deploy" --output json --top-k 3
+docsearch-mcp search "how to deploy" --output json --top-k 3
 
-# 5. Build for MCP
-pnpm build
-
-# 6. Test MCP server
-node dist/src/server/mcp.js
+# 5. Test MCP server
+npx docsearch-mcp mcp
 ```
 
 #### Production Docker Workflow
@@ -677,14 +650,14 @@ docker-compose run --rm docsearch-cli pnpm start:cli search "authentication" -o 
 
 ```bash
 # CLI configuration
-docsearch ingest files \
+docsearch-mcp ingest files \
   --file-roots "./src,./docs,./README.md" \
   --file-include-globs "**/*.{ts,tsx,md,yaml,json}" \
   --file-exclude-globs "**/node_modules/**,**/dist/**,**/.git/**"
 
 # Search for React patterns
-docsearch search "useEffect hook patterns" --source file --top-k 10
-docsearch search "TypeScript interface" --mode vector --output json
+docsearch-mcp search "useEffect hook patterns" --source file --top-k 10
+docsearch-mcp search "TypeScript interface" --mode vector --output json
 ```
 
 **MCP Configuration:**
@@ -693,8 +666,8 @@ docsearch search "TypeScript interface" --mode vector --output json
 {
   "mcpServers": {
     "project-docs": {
-      "command": "node",
-      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "./src,./docs,./README.md",
@@ -715,8 +688,8 @@ docsearch search "TypeScript interface" --mode vector --output json
 {
   "mcpServers": {
     "team-knowledge": {
-      "command": "node",
-      "args": ["/path/to/docsearch-mcp/dist/src/server/mcp.js"],
+      "command": "npx",
+      "args": ["docsearch-mcp", "mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/team/frontend,/team/backend,/team/mobile,/team/docs",
@@ -736,32 +709,32 @@ docsearch search "TypeScript interface" --mode vector --output json
 
 ```bash
 # Index academic papers and personal notes
-docsearch ingest files \
+docsearch-mcp ingest files \
   --file-roots "/home/user/papers,/home/user/notes,/home/user/projects" \
   --file-include-globs "**/*.{pdf,md,txt,py,ipynb}" \
   --embeddings-provider tei \
   --tei-endpoint "http://localhost:8080/embeddings"
 
 # Search across all personal knowledge
-docsearch search "machine learning optimization" --mode auto --top-k 15
+docsearch-mcp search "machine learning optimization" --mode auto --top-k 15
 
 # Search for diagrams and technical images
-docsearch search "neural network architecture" --include-images --top-k 10
-docsearch search "flowchart" --images-only --output json
+docsearch-mcp search "neural network architecture" --include-images --top-k 10
+docsearch-mcp search "flowchart" --images-only --output json
 ```
 
 #### PDF-Heavy Workflow
 
 ```bash
 # Setup for research document collection
-docsearch ingest files \
+docsearch-mcp ingest files \
   --file-roots "/research/papers,/research/reports" \
   --file-include-globs "**/*.{pdf,docx,md,txt}" \
   --openai-embed-model "text-embedding-3-large" \
   --openai-embed-dim 3072
 
 # Search through research papers
-docsearch search "neural network architectures" \
+docsearch-mcp search "neural network architectures" \
   --mode vector \
   --top-k 20 \
   --output yaml
@@ -773,31 +746,31 @@ docsearch search "neural network architectures" \
 
 ```bash
 # Search only TypeScript files in components directory
-docsearch search "button component" \
+docsearch-mcp search "button component" \
   --source file \
   --path-prefix src/components/ \
   --mode auto
 
 # Find Confluence deployment docs from specific space
-docsearch search "kubernetes deployment" \
+docsearch-mcp search "kubernetes deployment" \
   --source confluence \
   --repo DEVOPS \
   --mode keyword
 
 # Semantic search across all sources with high precision
-docsearch search "error handling patterns" \
+docsearch-mcp search "error handling patterns" \
   --mode vector \
   --top-k 50 \
   --output json | jq '.results[] | select(.score > 0.8)'
 
 # Search for architecture diagrams and flowcharts
-docsearch search "system design diagram" \
+docsearch-mcp search "system design diagram" \
   --images-only \
   --mode vector \
   --output json
 
 # Include images when searching for UI/UX content
-docsearch search "user interface design" \
+docsearch-mcp search "user interface design" \
   --include-images \
   --path-prefix docs/ \
   --top-k 20
@@ -808,14 +781,14 @@ docsearch search "user interface design" \
 **Text Output (Human-readable):**
 
 ```bash
-docsearch search "authentication middleware" --output text
+docsearch-mcp search "authentication middleware" --output text
 ```
 
 **JSON Output (For scripts):**
 
 ```bash
 # Get results for further processing
-RESULTS=$(docsearch search "API rate limiting" --output json)
+RESULTS=$(docsearch-mcp search "API rate limiting" --output json)
 echo "$RESULTS" | jq '.results[].path' | head -5
 ```
 
@@ -823,7 +796,7 @@ echo "$RESULTS" | jq '.results[].path' | head -5
 
 ```bash
 # Generate documentation from search results
-docsearch search "configuration options" --output yaml > config-docs.yml
+docsearch-mcp search "configuration options" --output yaml > config-docs.yml
 ```
 
 ### Troubleshooting Examples
@@ -832,19 +805,19 @@ docsearch search "configuration options" --output yaml > config-docs.yml
 
 ```bash
 # Compare search modes
-docsearch search "async function" --mode keyword --top-k 5
-docsearch search "async function" --mode vector --top-k 5
-docsearch search "async function" --mode auto --top-k 5
+docsearch-mcp search "async function" --mode keyword --top-k 5
+docsearch-mcp search "async function" --mode vector --top-k 5
+docsearch-mcp search "async function" --mode auto --top-k 5
 
 # Check what's indexed
-docsearch ingest-status
+docsearch-mcp ingest-status
 ```
 
 #### Performance Optimization
 
 ```bash
 # Use smaller embedding model for speed
-docsearch ingest all \
+docsearch-mcp ingest all \
   --openai-embed-model "text-embedding-3-small" \
   --openai-embed-dim 1536
 
@@ -853,7 +826,7 @@ docker run -d --name tei -p 8080:80 \
   ghcr.io/huggingface/text-embeddings-inference:cpu-1.2 \
   --model-id sentence-transformers/all-MiniLM-L6-v2
 
-docsearch ingest all \
+docsearch-mcp ingest all \
   --embeddings-provider tei \
   --tei-endpoint http://localhost:8080/embeddings
 ```
@@ -905,14 +878,14 @@ fi
 
 # Index all project documentation
 echo "Indexing project documentation..."
-docsearch ingest files \
+docsearch-mcp ingest files \
     --file-roots "./src,./docs,./examples" \
     --file-include-globs "**/*.{ts,js,md,yaml,json}" \
     --db-path "./project-index.db"
 
 # Generate search summary
 echo "Search index updated. Statistics:"
-docsearch ingest-status --output json | jq '.documents'
+docsearch-mcp ingest-status --output json | jq '.documents'
 ```
 
 ### Search Modes
