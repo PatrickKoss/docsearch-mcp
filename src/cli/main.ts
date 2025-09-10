@@ -107,6 +107,21 @@ program
     }
   });
 
+// Start MCP server command
+program
+  .command('start')
+  .description('Start the MCP server')
+  .action(async () => {
+    try {
+      // Import and start the MCP server
+      const { startServer } = await import('../server/mcp.js');
+      await startServer();
+    } catch (error) {
+      console.error('Failed to start MCP server:', error);
+      process.exit(1);
+    }
+  });
+
 // Search command
 program
   .command('search')

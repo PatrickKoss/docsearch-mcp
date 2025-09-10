@@ -1,6 +1,6 @@
 {
   "name": "docsearch-mcp",
-  "version": "v0.0.1",
+  "version": "0.0.2",
   "description": "MCP server and CLI tool for local document search with hybrid semantic+keyword search across PDFs, files, and Confluence",
   "keywords": [
     "mcp",

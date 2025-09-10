@@ -36,10 +36,15 @@ npx docsearch-mcp --help
 
 ```bash
 # Pull the image
-docker pull ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+docker pull ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 
-# Run the MCP server
-docker run -p 3000:3000 ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+# Run the MCP server with proper permissions
+docker run --rm -i \
+  -v /path/to/your/documents:/app/documents \
+  -v /path/to/data:/app/data \
+  --env-file .env \
+  --user $(id -u):$(id -g) \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 ```
 
 ### MCP Server Usage
@@ -51,7 +56,7 @@ Add to your MCP client configuration:
   "mcpServers": {
     "docsearch": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"]
+      "args": ["docsearch-mcp", "start"]
     }
   }
 }
@@ -99,29 +104,38 @@ docsearch-mcp search --help
 
 ```bash
 # Run the MCP server directly
-npx docsearch-mcp mcp
+npx docsearch-mcp start
 
 # Or if installed globally
-docsearch-mcp mcp
+docsearch-mcp start
 ```
 
 #### Docker Usage
 
 ```bash
-# Run with official Docker image
-docker run --rm \
-  -v ./documents:/app/documents \
-  -v docsearch-data:/app/data \
+# Run with official Docker image (recommended)
+docker run --rm -i \
+  -v /path/to/your/documents:/app/documents \
+  -v /path/to/data:/app/data \
   --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+  --user $(id -u):$(id -g) \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 
 # Run CLI commands with Docker
+docker run --rm -i \
+  -v /path/to/your/documents:/app/documents \
+  -v /path/to/data:/app/data \
+  --env-file .env \
+  --user $(id -u):$(id -g) \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2 \
+  npx docsearch-mcp search "your query"
+
+# Alternative: Use Docker volumes (simpler but less control)
 docker run --rm \
   -v ./documents:/app/documents \
   -v docsearch-data:/app/data \
   --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1 \
-  npx docsearch-mcp search "your query"
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 
 # For development (requires cloning repo)
 docker-compose up -d docsearch-mcp
@@ -141,27 +155,50 @@ echo "FILE_ROOTS=/app/documents" >> .env
 Key considerations for Docker deployment:
 
 - **Document Volume**: Mount your documents directory to `/app/documents` in the container
-- **Data Persistence**: Use a Docker volume for `/app/data` to persist the SQLite database
+- **Data Persistence**: Mount your data directory to `/app/data` to persist the SQLite database
+- **User Permissions**: Use `--user $(id -u):$(id -g)` to avoid permission issues with mounted volumes
 - **Environment Variables**: Pass configuration via `.env` file or environment variables
-- **Official Image**: Use `ghcr.io/patrickkoss/docsearch-mcp:v0.0.1` for production deployments
+- **Official Image**: Use `ghcr.io/patrickkoss/docsearch-mcp:v0.0.2` for production deployments
 
 #### Using the Official Docker Image
 
+**Recommended approach with proper permissions:**
+
 ```bash
-# Basic usage
+# Basic usage with user permissions (avoids file ownership issues)
+docker run --rm -i \
+  -v /absolute/path/to/documents:/app/documents \
+  -v /absolute/path/to/data:/app/data \
+  --env-file .env \
+  --user $(id -u):$(id -g) \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+
+# For MCP server integration (background service)
+docker run -d --name docsearch-mcp \
+  -v /absolute/path/to/documents:/app/documents \
+  -v /absolute/path/to/data:/app/data \
+  --env-file .env \
+  --user $(id -u):$(id -g) \
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+```
+
+**Alternative approach with Docker volumes:**
+
+```bash
+# Using Docker volumes (simpler but less direct file access)
 docker run --rm \
   -v ./documents:/app/documents \
   -v docsearch-data:/app/data \
   --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
-
-# For MCP server integration
-docker run -d --name docsearch-mcp \
-  -v ./documents:/app/documents \
-  -v docsearch-data:/app/data \
-  --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 ```
+
+**Docker Permissions Explained:**
+
+- **`--user $(id -u):$(id -g)`**: Runs the container with your user ID and group ID, preventing file permission issues
+- **Dynamic User Creation**: The container automatically creates a user matching your mounted volume permissions
+- **Automatic File Ownership**: Container files are automatically owned by the correct user
+- **Cross-Platform Compatibility**: Works consistently across different host systems
 
 ### Local Development Configuration
 
@@ -456,7 +493,7 @@ All configuration options are passed via environment variables to the MCP server
      "mcpServers": {
        "docsearch": {
          "command": "npx",
-         "args": ["docsearch-mcp", "mcp"],
+         "args": ["docsearch-mcp", "start"],
          "env": {
            "OPENAI_API_KEY": "your-openai-key",
            "EMBEDDINGS_PROVIDER": "openai",
@@ -487,7 +524,7 @@ All configuration options are passed via environment variables to the MCP server
         "docsearch-data:/app/data",
         "--env-file",
         ".env",
-        "ghcr.io/patrickkoss/docsearch-mcp:v0.0.1"
+        "ghcr.io/patrickkoss/docsearch-mcp:v0.0.2"
       ]
     }
   }
@@ -502,7 +539,7 @@ Create a `docker-compose.yml` file:
 version: '3.8'
 services:
   docsearch-mcp:
-    image: ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+    image: ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
     volumes:
       - ./documents:/app/documents
       - docsearch-data:/app/data
@@ -535,7 +572,7 @@ Then configure MCP:
   "mcpServers": {
     "docsearch-work": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"],
+      "args": ["docsearch-mcp", "start"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/work/projects/frontend,/work/projects/backend",
@@ -547,7 +584,7 @@ Then configure MCP:
     },
     "docsearch-personal": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"],
+      "args": ["docsearch-mcp", "start"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/home/user/projects,/home/user/documents",
@@ -567,7 +604,7 @@ Then configure MCP:
   "mcpServers": {
     "docsearch": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"],
+      "args": ["docsearch-mcp", "start"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "DB_TYPE": "postgresql",
@@ -659,7 +696,7 @@ docsearch-mcp ingest all --watch &
 docsearch-mcp search "how to deploy" --output json --top-k 3
 
 # 5. Test MCP server
-npx docsearch-mcp mcp
+npx docsearch-mcp start
 ```
 
 #### Production Docker Workflow
@@ -680,7 +717,7 @@ docker run -d \
   -v $(pwd)/documents:/app/documents \
   -v docsearch-data:/app/data \
   --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.1
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
 
 # 4. Index documents
 docker exec docsearch-mcp npx docsearch-mcp ingest all
@@ -714,7 +751,7 @@ docsearch-mcp search "TypeScript interface" --mode vector --output json
   "mcpServers": {
     "project-docs": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"],
+      "args": ["docsearch-mcp", "start"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "./src,./docs,./README.md",
@@ -736,7 +773,7 @@ docsearch-mcp search "TypeScript interface" --mode vector --output json
   "mcpServers": {
     "team-knowledge": {
       "command": "npx",
-      "args": ["docsearch-mcp", "mcp"],
+      "args": ["docsearch-mcp", "start"],
       "env": {
         "OPENAI_API_KEY": "sk-your-key",
         "FILE_ROOTS": "/team/frontend,/team/backend,/team/mobile,/team/docs",

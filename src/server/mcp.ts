@@ -167,5 +167,12 @@ server.registerTool(
   },
 );
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+export async function startServer() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+// Auto-start if run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await startServer();
+}

@@ -41,23 +41,54 @@ FROM node:24-alpine AS runtime
 # Install runtime dependencies
 RUN apk add --no-cache \
     sqlite \
-    dumb-init \
-    && addgroup -g 1001 -S docsearch \
-    && adduser -S docsearch -u 1001
+    dumb-init
 
 # Set working directory
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder --chown=docsearch:docsearch /app/dist ./dist
-COPY --from=prod-deps --chown=docsearch:docsearch /app/node_modules ./node_modules
-COPY --chown=docsearch:docsearch package.json ./
+# Copy built application with root ownership initially
+COPY --from=builder /app/dist ./dist
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY package.json ./
 
-# Create data directory with proper permissions
-RUN mkdir -p /app/data && chown docsearch:docsearch /app/data
+# Create data directory that can be accessed by any user
+RUN mkdir -p /app/data && chmod 777 /app/data
 
-# Switch to non-root user
-USER docsearch
+# Create an entrypoint script to handle user permissions dynamically
+RUN echo '#!/bin/sh' > /docker-entrypoint.sh && \
+    echo '# If running as root, create a user matching the mounted volume permissions' >> /docker-entrypoint.sh && \
+    echo 'if [ "$(id -u)" = "0" ]; then' >> /docker-entrypoint.sh && \
+    echo '    # Find the owner of /app/data to determine what user we should run as' >> /docker-entrypoint.sh && \
+    echo '    if [ -d /app/data ]; then' >> /docker-entrypoint.sh && \
+    echo '        DATA_UID=$(stat -c %u /app/data 2>/dev/null || echo 1001)' >> /docker-entrypoint.sh && \
+    echo '        DATA_GID=$(stat -c %g /app/data 2>/dev/null || echo 1001)' >> /docker-entrypoint.sh && \
+    echo '    else' >> /docker-entrypoint.sh && \
+    echo '        DATA_UID=1001' >> /docker-entrypoint.sh && \
+    echo '        DATA_GID=1001' >> /docker-entrypoint.sh && \
+    echo '    fi' >> /docker-entrypoint.sh && \
+    echo '    ' >> /docker-entrypoint.sh && \
+    echo '    # Create group and user if they do not exist' >> /docker-entrypoint.sh && \
+    echo '    if ! getent group "$DATA_GID" >/dev/null 2>&1; then' >> /docker-entrypoint.sh && \
+    echo '        addgroup -g "$DATA_GID" -S docsearch' >> /docker-entrypoint.sh && \
+    echo '    fi' >> /docker-entrypoint.sh && \
+    echo '    if ! getent passwd "$DATA_UID" >/dev/null 2>&1; then' >> /docker-entrypoint.sh && \
+    echo '        adduser -S -u "$DATA_UID" -G "$(getent group "$DATA_GID" | cut -d: -f1)" docsearch' >> /docker-entrypoint.sh && \
+    echo '    fi' >> /docker-entrypoint.sh && \
+    echo '    ' >> /docker-entrypoint.sh && \
+    echo '    # Change ownership of app files to match the data directory' >> /docker-entrypoint.sh && \
+    echo '    chown -R "$DATA_UID:$DATA_GID" /app' >> /docker-entrypoint.sh && \
+    echo '    ' >> /docker-entrypoint.sh && \
+    echo '    # Re-execute this script as the correct user' >> /docker-entrypoint.sh && \
+    echo '    exec su-exec "$DATA_UID:$DATA_GID" "$0" "$@"' >> /docker-entrypoint.sh && \
+    echo 'fi' >> /docker-entrypoint.sh && \
+    echo '' >> /docker-entrypoint.sh && \
+    echo '# Execute the original command with dumb-init' >> /docker-entrypoint.sh && \
+    echo 'exec dumb-init -- "$@"' >> /docker-entrypoint.sh
+
+RUN chmod +x /docker-entrypoint.sh
+
+# Install su-exec for user switching
+RUN apk add --no-cache su-exec
 
 # Create volume for persistent data
 VOLUME ["/app/data"]
@@ -69,8 +100,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port for MCP server (if running in server mode)
 EXPOSE 3000
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
+# Use our custom entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Default command (can be overridden)
 CMD ["node", "dist/server/mcp.js"]
