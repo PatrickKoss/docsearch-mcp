@@ -7,6 +7,44 @@ vi.mock('undici', () => ({
 
 const mockFetch = vi.mocked(fetch);
 
+// Helper function to create mock Response objects
+const createMockResponse = (init: {
+  ok: boolean;
+  status: number;
+  statusText?: string;
+  headers?: Record<string, string>;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+}): any => {
+  const headers = new Map(Object.entries(init.headers || {}));
+  return {
+    ok: init.ok,
+    status: init.status,
+    statusText: init.statusText || 'OK',
+    headers: {
+      get: (name: string) => headers.get(name.toLowerCase()) || null,
+      has: (name: string) => headers.has(name.toLowerCase()),
+      keys: () => headers.keys(),
+      values: () => headers.values(),
+      entries: () => headers.entries(),
+      [Symbol.iterator]: () => headers.entries(),
+      forEach: (callback: any) => headers.forEach(callback),
+    },
+    json: init.json || vi.fn(),
+    text: init.text || vi.fn(),
+    blob: vi.fn(),
+    arrayBuffer: vi.fn(),
+    formData: vi.fn(),
+    bytes: vi.fn(),
+    clone: vi.fn(),
+    body: null,
+    bodyUsed: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://api.openai.com/v1/embeddings',
+  };
+};
+
 describe('Embeddings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,13 +101,14 @@ describe('Embeddings', () => {
       const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
       const embedder = new OpenAIEmbedder();
 
-      const mockResponse = {
+      const mockResponse = createMockResponse({
         ok: true,
+        status: 200,
         json: vi.fn().mockResolvedValue({
           data: [{ embedding: [0.1, 0.2, 0.3] }, { embedding: [0.4, 0.5, 0.6] }],
         }),
-      };
-      mockFetch.mockResolvedValue(mockResponse as any);
+      });
+      mockFetch.mockResolvedValue(mockResponse);
 
       const result = await embedder.embed(['text1', 'text2']);
 
@@ -107,15 +146,12 @@ describe('Embeddings', () => {
       const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
       const embedder = new OpenAIEmbedder();
 
-      const mockResponse = {
+      const mockResponse = createMockResponse({
         ok: false,
         status: 401,
         text: vi.fn().mockResolvedValue('Unauthorized'),
-        headers: {
-          get: vi.fn().mockReturnValue(null),
-        },
-      };
-      mockFetch.mockResolvedValue(mockResponse as any);
+      });
+      mockFetch.mockResolvedValue(mockResponse);
 
       await expect(embedder.embed(['text'])).rejects.toThrow(
         'Embeddings API error 401: Unauthorized',
@@ -136,33 +172,26 @@ describe('Embeddings', () => {
         callCount++;
         if (callCount === 1) {
           // First call returns rate limit
-          return {
+          return createMockResponse({
             ok: false,
             status: 429,
-            text: vi.fn().mockResolvedValue('Rate limit exceeded'),
+            statusText: 'Too Many Requests',
             headers: {
-              get: vi.fn().mockImplementation((header: string) => {
-                switch (header) {
-                  case 'retry-after':
-                    return '2';
-                  case 'x-ratelimit-remaining-requests':
-                    return '0';
-                  case 'x-ratelimit-remaining-tokens':
-                    return '1000';
-                  default:
-                    return null;
-                }
-              }),
+              'retry-after': '2',
+              'x-ratelimit-remaining-requests': '0',
+              'x-ratelimit-remaining-tokens': '1000',
             },
-          };
+            text: vi.fn().mockResolvedValue('Rate limit exceeded'),
+          });
         } else {
           // Second call succeeds
-          return {
+          return createMockResponse({
             ok: true,
+            status: 200,
             json: vi.fn().mockResolvedValue({
               data: [{ embedding: [0.1, 0.2, 0.3] }],
             }),
-          };
+          });
         }
       });
 
@@ -199,21 +228,19 @@ describe('Embeddings', () => {
       mockFetch.mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
-          return {
+          return createMockResponse({
             ok: false,
             status: 429,
             text: vi.fn().mockResolvedValue('Rate limit exceeded'),
-            headers: {
-              get: vi.fn().mockReturnValue(null),
-            },
-          };
+          });
         } else {
-          return {
+          return createMockResponse({
             ok: true,
+            status: 200,
             json: vi.fn().mockResolvedValue({
               data: [{ embedding: [0.1, 0.2, 0.3] }],
             }),
-          };
+          });
         }
       });
 
@@ -246,15 +273,12 @@ describe('Embeddings', () => {
 
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
-      const mockResponse = {
+      const mockResponse = createMockResponse({
         ok: false,
         status: 429,
         text: vi.fn().mockResolvedValue('Rate limit exceeded'),
-        headers: {
-          get: vi.fn().mockReturnValue(null),
-        },
-      };
-      mockFetch.mockResolvedValue(mockResponse as any);
+      });
+      mockFetch.mockResolvedValue(mockResponse);
 
       await expect(embedder.embed(['test text'])).rejects.toThrow('Rate limit exceeded');
       expect(mockFetch).toHaveBeenCalledTimes(5); // maxRetries = 5
@@ -278,12 +302,13 @@ describe('Embeddings', () => {
         if (callCount === 1) {
           throw new Error('Network error');
         } else {
-          return {
+          return createMockResponse({
             ok: true,
+            status: 200,
             json: vi.fn().mockResolvedValue({
               data: [{ embedding: [0.1, 0.2, 0.3] }],
             }),
-          };
+          });
         }
       });
 
@@ -352,13 +377,14 @@ describe('Embeddings', () => {
       const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
       const embedder = new TEIEmbedder();
 
-      const mockResponse = {
+      const mockResponse = createMockResponse({
         ok: true,
+        status: 200,
         json: vi.fn().mockResolvedValue({
           data: [{ embedding: [0.1, 0.2, 0.3] }, { embedding: [0.4, 0.5, 0.6] }],
         }),
-      };
-      mockFetch.mockResolvedValue(mockResponse as any);
+      });
+      mockFetch.mockResolvedValue(mockResponse);
 
       const result = await embedder.embed(['text1', 'text2']);
 
@@ -390,12 +416,12 @@ describe('Embeddings', () => {
       const { TEIEmbedder } = await import('../src/ingest/embeddings.js');
       const embedder = new TEIEmbedder();
 
-      const mockResponse = {
+      const mockResponse = createMockResponse({
         ok: false,
         status: 500,
         text: vi.fn().mockResolvedValue('Internal Server Error'),
-      };
-      mockFetch.mockResolvedValue(mockResponse as any);
+      });
+      mockFetch.mockResolvedValue(mockResponse);
 
       await expect(embedder.embed(['text'])).rejects.toThrow(
         'TEI error 500: Internal Server Error',
