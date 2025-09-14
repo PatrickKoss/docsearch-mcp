@@ -209,10 +209,10 @@ jobs:
             ### Docker Container
             \`\`\`bash
             # Pull the image
-            docker pull ghcr.io/${{ github.repository }}:${{ needs.validate-build.outputs.version }}
+            docker pull ghcr.io/${{ github.repository }}:v${{ needs.validate-build.outputs.version }}
             
             # Run the MCP server
-            docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ needs.validate-build.outputs.version }}
+            docker run -p 3000:3000 ghcr.io/${{ github.repository }}:v${{ needs.validate-build.outputs.version }}
             \`\`\`
             
             ### MCP Server Usage
@@ -222,7 +222,7 @@ jobs:
               "mcpServers": {
                 "docsearch": {
                   "command": "npx",
-                  "args": ["docsearch-mcp", "mcp"]
+                  "args": ["docsearch-mcp", "start"]
                 }
               }
             }

@@ -1,6 +1,6 @@
 {
   "name": "docsearch-mcp",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "MCP server and CLI tool for local document search with hybrid semantic+keyword search across PDFs, files, and Confluence",
   "keywords": [
     "mcp",
@@ -16,7 +16,7 @@
     "url": "git+https://github.com/patrickkoss/docsearch-mcp.git"
   },
   "author": "Patrick Koss <pati.koss@gmx.de>",
-  "license": "MIT",
+  "license": "Apache License Version 2.0",
   "main": "dist/server/mcp.js",
   "bin": {
     "docsearch-mcp": "dist/src/cli/main.js"
