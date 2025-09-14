@@ -162,7 +162,8 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
       allowedPageIds = null; // Allow all pages
     } else {
       console.info(`Total allowed page IDs: ${allowedPageIds.size}`);
-      console.info('Allowed page IDs:', Array.from(allowedPageIds).slice(0, 10)); // Show first 10
+      console.info('Sample allowed page IDs:', Array.from(allowedPageIds).slice(0, 10)); // Show first 10
+      console.info('Full list of allowed page IDs:', Array.from(allowedPageIds).join(','));
     }
   }
 
@@ -197,6 +198,14 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
         }
 
         searchResultIds.add(id);
+
+        // Skip processing if parent page filtering is enabled and this page is not allowed
+        if (allowedPageIds && !allowedPageIds.has(id)) {
+          skippedCount++;
+          console.info(`Skipping page ${id} - not under specified parent pages`);
+          continue;
+        }
+
         processedIds.add(id);
 
         try {
@@ -336,9 +345,18 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
     console.info(
       `Space ${space}: Total processed ${processedCount} pages, skipped ${skippedCount}`,
     );
-    console.info(
-      `Search found ${searchResultIds.size} pages, parent pages collected ${allowedPageIds?.size || 0} pages`,
-    );
+
+    if (allowedPageIds) {
+      const allowedInSearch = Array.from(searchResultIds).filter((id) =>
+        allowedPageIds.has(id),
+      ).length;
+      console.info(
+        `Search found ${searchResultIds.size} pages total, ${allowedInSearch} under specified parent pages`,
+      );
+      console.info(`Parent page filter collected ${allowedPageIds.size} allowed page IDs`);
+    } else {
+      console.info(`Search found ${searchResultIds.size} pages (no parent page filtering)`);
+    }
 
     await indexer.setMeta(metaKey, new Date().toISOString());
   }
