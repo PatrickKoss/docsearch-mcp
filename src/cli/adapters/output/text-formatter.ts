@@ -1,6 +1,7 @@
-import type { OutputFormatter, SearchResult } from '../../domain/ports.js';
+import type { OutputFormatter, SearchResult, Configuration } from '../../domain/ports.js';
 
 export class TextFormatter implements OutputFormatter {
+  constructor(private readonly config?: Configuration) {}
   format(results: SearchResult[]): string {
     if (results.length === 0) {
       return 'No results found.';
@@ -46,6 +47,19 @@ export class TextFormatter implements OutputFormatter {
 
     if (result.path) {
       parts.push(result.path);
+    }
+
+    // Add Confluence link if available
+    if (result.source === 'confluence' && result.extra_json && this.config?.confluence.baseUrl) {
+      try {
+        const extraData = JSON.parse(result.extra_json);
+        if (extraData.webui) {
+          const confluenceUrl = `${this.config.confluence.baseUrl.replace(/\/$/, '')}${extraData.webui}`;
+          parts.push(confluenceUrl);
+        }
+      } catch (_error) {
+        // Ignore JSON parsing errors
+      }
     }
 
     return parts.length > 0 ? `📍 ${parts.join(' • ')}` : '';

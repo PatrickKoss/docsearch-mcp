@@ -189,7 +189,7 @@ program
       try {
         // Initialize configuration
         const configProvider = new EnvConfigProvider(configOverrides);
-        await configProvider.getConfiguration(); // Load configuration
+        const configuration = await configProvider.getConfiguration(); // Load configuration
 
         // Validate options
         const topK = parseInt(options.topK || '10', 10);
@@ -228,7 +228,10 @@ program
         const documentService = new DocumentServiceAdapter();
         const results = await documentService.search(searchCommand);
 
-        const formatter = FormatterFactory.createFormatter(searchCommand.output || 'text');
+        const formatter = FormatterFactory.createFormatter(
+          searchCommand.output || 'text',
+          configuration,
+        );
         const output = formatter.format(results);
 
         console.log(output);

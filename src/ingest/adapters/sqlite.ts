@@ -394,7 +394,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         limit @k
       )
       select kw.chunk_id, kw.score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
-             c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
+             c.start_line, c.end_line, substr(c.content, 1, 400) as snippet, d.extra_json
       from kw
       join chunks c on c.id = kw.chunk_id
       join documents d on d.id = c.document_id
@@ -444,7 +444,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         where embedding match @embedding and k = @k
       )
       select m.chunk_id as chunk_id, vec.distance as score, d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
-             c.start_line, c.end_line, substr(c.content, 1, 400) as snippet
+             c.start_line, c.end_line, substr(c.content, 1, 400) as snippet, d.extra_json
       from vec
       join chunk_vec_map m on m.vec_rowid = vec.rowid
       join chunks c on c.id = m.chunk_id

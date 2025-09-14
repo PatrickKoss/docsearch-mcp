@@ -15,6 +15,7 @@ export interface SearchResult {
   readonly start_line: number | null;
   readonly end_line: number | null;
   readonly snippet: string;
+  readonly extra_json: string | null;
 }
 
 export type OutputFormat = 'text' | 'json' | 'yaml';

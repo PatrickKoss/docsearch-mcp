@@ -8,6 +8,7 @@ import { getDatabase } from '../ingest/database.js';
 import { performSearch } from '../ingest/search.js';
 import { registerIngestTools } from './tools/ingest-tools.js';
 import { FormatterFactory } from '../cli/adapters/output/formatter-factory.js';
+import { CONFIG } from '../shared/config.js';
 
 import type { OutputFormat } from '../cli/domain/ports.js';
 import type { SearchResult as AdapterSearchResult } from '../ingest/adapters/index.js';
@@ -117,7 +118,7 @@ server.registerTool(
     const items = results.slice(0, input.topK ?? 8);
 
     // Handle output formatting if requested
-    if (input.output && input.output !== 'text') {
+    if (input.output) {
       // Convert to CLI-compatible format for formatting
       const cliResults = items.map((r) => ({
         ...r,
@@ -127,7 +128,39 @@ server.registerTool(
         source: r.source as SourceType,
       }));
 
-      const formatter = FormatterFactory.createFormatter(input.output);
+      // Create minimal configuration for text formatter
+      const config = {
+        confluence: {
+          baseUrl: CONFIG.CONFLUENCE_BASE_URL,
+          email: CONFIG.CONFLUENCE_EMAIL,
+          apiToken: CONFIG.CONFLUENCE_API_TOKEN,
+          spaces: CONFIG.CONFLUENCE_SPACES,
+        },
+        embeddings: {
+          provider: CONFIG.EMBEDDINGS_PROVIDER,
+          openai: {
+            apiKey: CONFIG.OPENAI_API_KEY,
+            baseUrl: CONFIG.OPENAI_BASE_URL,
+            model: CONFIG.OPENAI_EMBED_MODEL,
+            dimension: CONFIG.OPENAI_EMBED_DIM,
+          },
+          tei: {
+            endpoint: CONFIG.TEI_ENDPOINT,
+          },
+        },
+        files: {
+          roots: CONFIG.FILE_ROOTS,
+          includeGlobs: CONFIG.FILE_INCLUDE_GLOBS,
+          excludeGlobs: CONFIG.FILE_EXCLUDE_GLOBS,
+        },
+        database: {
+          type: CONFIG.DB_TYPE,
+          path: CONFIG.DB_PATH,
+          connectionString: CONFIG.POSTGRES_CONNECTION_STRING,
+        },
+      };
+
+      const formatter = FormatterFactory.createFormatter(input.output, config);
       const formattedOutput = formatter.format(cliResults);
 
       return {

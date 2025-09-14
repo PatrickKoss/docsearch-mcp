@@ -303,7 +303,7 @@ export class PostgresAdapter implements DatabaseAdapter {
              ts_rank(to_tsvector('english', c.content), plainto_tsquery('english', $1)) as score,
              d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
              c.start_line, c.end_line,
-             LEFT(c.content, 400) as snippet
+             LEFT(c.content, 400) as snippet, d.extra_json
       FROM chunks c
       JOIN documents d ON d.id = c.document_id
       WHERE ${conditions.join(' AND ')}
@@ -351,7 +351,7 @@ export class PostgresAdapter implements DatabaseAdapter {
              (e.embedding <=> $1) as score,
              d.id as document_id, d.source, d.uri, d.repo, d.path, d.title,
              c.start_line, c.end_line,
-             LEFT(c.content, 400) as snippet
+             LEFT(c.content, 400) as snippet, d.extra_json
       FROM chunk_embeddings e
       JOIN chunks c ON c.id = e.chunk_id
       JOIN documents d ON d.id = c.document_id
