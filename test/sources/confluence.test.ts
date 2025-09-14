@@ -190,7 +190,7 @@ describe('Confluence Source Ingestion', () => {
       expect(markdownChunk.content).toContain('_italic_');
     });
 
-    it('should handle incremental sync with lastModified filter', async () => {
+    it('should handle incremental sync by falling back to full sync', async () => {
       const indexer = new (await import('../../src/ingest/indexer.js')).Indexer(adapter);
       indexer.setMeta('confluence.lastSync.PROJ', '2024-01-01T00:00:00.000Z');
 
@@ -206,8 +206,13 @@ describe('Confluence Source Ingestion', () => {
 
       await ingestConfluence(adapter);
 
+      // Should use full sync for reliability instead of timestamp filtering
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('lastmodified%20%3E%3D%202024-01-01T00%3A00%3A00.000Z'),
+        expect.stringContaining('space%3D%22PROJ%22%20and%20type%3Dpage'),
+        expect.any(Object),
+      );
+      expect(mockFetch).not.toHaveBeenCalledWith(
+        expect.stringContaining('lastmodified'),
         expect.any(Object),
       );
     });

@@ -1,8 +1,23 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'fs';
+// Load environment variables early, before any other imports that might depend on them
+import { readFileSync, existsSync } from 'fs';
+import path from 'path';
 
 import { Command } from 'commander';
+import dotenv from 'dotenv';
+
+// Get config file path from command line arguments
+const configArgIndex = process.argv.findIndex((arg) => arg === '-c' || arg === '--config');
+if (configArgIndex !== -1 && configArgIndex + 1 < process.argv.length) {
+  const configPath = process.argv[configArgIndex + 1];
+  if (configPath) {
+    const resolvedPath = path.resolve(configPath);
+    if (existsSync(resolvedPath)) {
+      dotenv.config({ path: resolvedPath });
+    }
+  }
+}
 
 import { EnvConfigProvider } from './adapters/config/env-config-provider.js';
 import { DocumentServiceAdapter } from './adapters/document/document-service.js';

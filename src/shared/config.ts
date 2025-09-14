@@ -1,8 +1,5 @@
 import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
-
 type EmbeddingsProvider = 'openai' | 'tei';
 type DatabaseType = 'sqlite' | 'postgresql';
 type ConfluenceAuthMethod = 'basic' | 'bearer';
@@ -66,40 +63,56 @@ function validateConfluenceAuthMethod(method: string): ConfluenceAuthMethod {
   return 'basic';
 }
 
-export const CONFIG: AppConfig = {
-  EMBEDDINGS_PROVIDER: validateEmbeddingsProvider(process.env.EMBEDDINGS_PROVIDER || 'openai'),
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
-  OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
-  OPENAI_EMBED_MODEL: process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
-  OPENAI_EMBED_DIM: parseInt(process.env.OPENAI_EMBED_DIM || '1536', 10),
-  TEI_ENDPOINT: process.env.TEI_ENDPOINT || '',
+let _config: AppConfig | null = null;
 
-  ENABLE_IMAGE_TO_TEXT: process.env.ENABLE_IMAGE_TO_TEXT === 'true',
-  IMAGE_TO_TEXT_PROVIDER: process.env.IMAGE_TO_TEXT_PROVIDER || 'openai',
-  IMAGE_TO_TEXT_MODEL: process.env.IMAGE_TO_TEXT_MODEL || 'gpt-4o-mini',
+function initializeConfig(): AppConfig {
+  if (_config === null) {
+    // Load default .env file if it exists (for MCP server and other non-CLI usage)
+    dotenv.config();
 
-  CONFLUENCE_BASE_URL: process.env.CONFLUENCE_BASE_URL || '',
-  CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',
-  CONFLUENCE_API_TOKEN: process.env.CONFLUENCE_API_TOKEN || '',
-  CONFLUENCE_AUTH_METHOD: validateConfluenceAuthMethod(
-    process.env.CONFLUENCE_AUTH_METHOD || 'basic',
-  ),
-  CONFLUENCE_SPACES: splitCsv(process.env.CONFLUENCE_SPACES, ''),
-  CONFLUENCE_PARENT_PAGES: splitCsv(process.env.CONFLUENCE_PARENT_PAGES, ''),
-  CONFLUENCE_TITLE_INCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_INCLUDES, ''),
-  CONFLUENCE_TITLE_EXCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_EXCLUDES, ''),
+    _config = {
+      EMBEDDINGS_PROVIDER: validateEmbeddingsProvider(process.env.EMBEDDINGS_PROVIDER || 'openai'),
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+      OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
+      OPENAI_EMBED_MODEL: process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
+      OPENAI_EMBED_DIM: parseInt(process.env.OPENAI_EMBED_DIM || '1536', 10),
+      TEI_ENDPOINT: process.env.TEI_ENDPOINT || '',
 
-  FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
-  FILE_INCLUDE_GLOBS: splitCsv(
-    process.env.FILE_INCLUDE_GLOBS,
-    '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf,png,jpg,jpeg,gif,svg,webp}',
-  ),
-  FILE_EXCLUDE_GLOBS: splitCsv(
-    process.env.FILE_EXCLUDE_GLOBS,
-    '**/{.git,node_modules,dist,build,target}/**',
-  ),
+      ENABLE_IMAGE_TO_TEXT: process.env.ENABLE_IMAGE_TO_TEXT === 'true',
+      IMAGE_TO_TEXT_PROVIDER: process.env.IMAGE_TO_TEXT_PROVIDER || 'openai',
+      IMAGE_TO_TEXT_MODEL: process.env.IMAGE_TO_TEXT_MODEL || 'gpt-4o-mini',
 
-  DB_TYPE: validateDatabaseType(process.env.DB_TYPE || 'sqlite'),
-  DB_PATH: process.env.DB_PATH || './data/index.db',
-  POSTGRES_CONNECTION_STRING: process.env.POSTGRES_CONNECTION_STRING || '',
-} as const;
+      CONFLUENCE_BASE_URL: process.env.CONFLUENCE_BASE_URL || '',
+      CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',
+      CONFLUENCE_API_TOKEN: process.env.CONFLUENCE_API_TOKEN || '',
+      CONFLUENCE_AUTH_METHOD: validateConfluenceAuthMethod(
+        process.env.CONFLUENCE_AUTH_METHOD || 'basic',
+      ),
+      CONFLUENCE_SPACES: splitCsv(process.env.CONFLUENCE_SPACES, ''),
+      CONFLUENCE_PARENT_PAGES: splitCsv(process.env.CONFLUENCE_PARENT_PAGES, ''),
+      CONFLUENCE_TITLE_INCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_INCLUDES, ''),
+      CONFLUENCE_TITLE_EXCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_EXCLUDES, ''),
+
+      FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
+      FILE_INCLUDE_GLOBS: splitCsv(
+        process.env.FILE_INCLUDE_GLOBS,
+        '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf,png,jpg,jpeg,gif,svg,webp}',
+      ),
+      FILE_EXCLUDE_GLOBS: splitCsv(
+        process.env.FILE_EXCLUDE_GLOBS,
+        '**/{.git,node_modules,dist,build,target}/**',
+      ),
+
+      DB_TYPE: validateDatabaseType(process.env.DB_TYPE || 'sqlite'),
+      DB_PATH: process.env.DB_PATH || './data/index.db',
+      POSTGRES_CONNECTION_STRING: process.env.POSTGRES_CONNECTION_STRING || '',
+    } as const;
+  }
+  return _config;
+}
+
+export const CONFIG = new Proxy({} as AppConfig, {
+  get(target, prop: keyof AppConfig) {
+    return initializeConfig()[prop];
+  },
+});

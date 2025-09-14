@@ -72,7 +72,12 @@ async function getChildPageIds(parentPageId: string): Promise<Set<string>> {
         }
         start += limit;
       } catch (e) {
-        console.warn(`Failed to get children for page ${currentId}:`, e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        if (errorMessage.includes('404')) {
+          console.warn(`Page ${currentId} not found or not accessible, skipping children`);
+        } else {
+          console.warn(`Failed to get children for page ${currentId}:`, errorMessage);
+        }
         break;
       }
     }
@@ -116,10 +121,16 @@ function shouldIncludePage(title: string): boolean {
 }
 
 export async function ingestConfluence(adapter: DatabaseAdapter) {
-  if (!CONFIG.CONFLUENCE_BASE_URL || !CONFIG.CONFLUENCE_EMAIL || !CONFIG.CONFLUENCE_API_TOKEN) {
+  if (!CONFIG.CONFLUENCE_BASE_URL || !CONFIG.CONFLUENCE_API_TOKEN) {
     console.warn('Confluence env missing; skipping');
     return;
   }
+
+  if (CONFIG.CONFLUENCE_AUTH_METHOD === 'basic' && !CONFIG.CONFLUENCE_EMAIL) {
+    console.warn('Confluence email required for basic authentication; skipping');
+    return;
+  }
+
   const indexer = new Indexer(adapter);
 
   let allowedPageIds: Set<string> | null = null;
@@ -137,27 +148,45 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
           console.info(`Found ${childIds.size} pages under parent ${parentPageId}`);
         }
       } catch (e) {
-        console.warn(`Failed to get children for parent page ${parentPageRef}:`, e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.warn(`Failed to get children for parent page ${parentPageRef}: ${errorMessage}`);
       }
     }
 
     if (allowedPageIds.size === 0) {
-      console.warn('No pages found under specified parent pages');
-      return;
+      console.warn('No pages found under specified parent pages. This might be due to:');
+      console.warn('- Parent page IDs are incorrect');
+      console.warn('- Pages are not accessible with current credentials');
+      console.warn('- Pages have no children');
+      console.warn('Proceeding to search all pages in the space instead...');
+      allowedPageIds = null; // Allow all pages
+    } else {
+      console.info(`Total allowed page IDs: ${allowedPageIds.size}`);
+      console.info('Allowed page IDs:', Array.from(allowedPageIds).slice(0, 10)); // Show first 10
     }
   }
 
   for (const space of CONFIG.CONFLUENCE_SPACES) {
     const metaKey = `confluence.lastSync.${space}`;
     const since = await indexer.getMeta(metaKey);
-    const cql = since
-      ? encodeURIComponent(`space="${space}" and type=page and lastmodified >= ${since}`)
-      : encodeURIComponent(`space="${space}" and type=page`);
+    let cql: string;
+    if (since) {
+      // Confluence CQL doesn't support timestamp filtering reliably across different versions
+      // Fall back to full space search for reliability
+      console.info(`Incremental sync requested but using full sync for reliability`);
+      cql = encodeURIComponent(`space="${space}" and type=page`);
+    } else {
+      cql = encodeURIComponent(`space="${space}" and type=page`);
+    }
     let start = 0;
     const limit = 50;
     let processedCount = 0;
     let skippedCount = 0;
 
+    const searchResultIds = new Set<string>();
+    const processedIds = new Set<string>();
+
+    // First, process all pages found by space search
     while (true) {
       const page = await cfFetch(`/rest/api/search?cql=${cql}&start=${start}&limit=${limit}`);
       const results = page.results || [];
@@ -167,56 +196,62 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
           continue;
         }
 
-        if (allowedPageIds && !allowedPageIds.has(id)) {
+        searchResultIds.add(id);
+        processedIds.add(id);
+
+        try {
+          const detail = await cfFetch(
+            `/rest/api/content/${id}?expand=body.storage,version,space,_links,ancestors`,
+          );
+          const title = detail.title;
+
+          if (!shouldIncludePage(title)) {
+            skippedCount++;
+            console.info(`Skipping page "${title}" due to title filters`);
+            continue;
+          }
+
+          const storage = detail.body?.storage?.value || '';
+          const md = td.turndown(storage);
+          const uri = `confluence://${id}`;
+          const version = String(detail.version?.number ?? '');
+          const hash = sha256(md + version);
+
+          const ancestors = detail.ancestors || [];
+          const ancestorTitles = ancestors.map((a: { title: string }) => a.title).join(' > ');
+
+          const docId = await indexer.upsertDocument({
+            source: 'confluence',
+            uri,
+            repo: null,
+            path: null,
+            title,
+            lang: 'md',
+            hash,
+            mtime: Date.parse(
+              detail.version?.when || detail.history?.createdDate || new Date().toISOString(),
+            ),
+            version,
+            extraJson: JSON.stringify({
+              space: detail.space?.key,
+              webui: detail._links?.webui,
+              ancestors: ancestorTitles,
+            }),
+          });
+
+          const hasChunks = await adapter.hasChunks(docId);
+          if (!hasChunks) {
+            await indexer.insertChunks(docId, chunkDoc(md));
+          }
+
+          processedCount++;
+        } catch (error) {
+          console.warn(
+            `Failed to process page ${id}:`,
+            error instanceof Error ? error.message : error,
+          );
           skippedCount++;
-          continue;
         }
-
-        const detail = await cfFetch(
-          `/rest/api/content/${id}?expand=body.storage,version,space,_links,ancestors`,
-        );
-        const title = detail.title;
-
-        if (!shouldIncludePage(title)) {
-          skippedCount++;
-          console.info(`Skipping page "${title}" due to title filters`);
-          continue;
-        }
-
-        const storage = detail.body?.storage?.value || '';
-        const md = td.turndown(storage);
-        const uri = `confluence://${id}`;
-        const version = String(detail.version?.number ?? '');
-        const hash = sha256(md + version);
-
-        const ancestors = detail.ancestors || [];
-        const ancestorTitles = ancestors.map((a: { title: string }) => a.title).join(' > ');
-
-        const docId = await indexer.upsertDocument({
-          source: 'confluence',
-          uri,
-          repo: null,
-          path: null,
-          title,
-          lang: 'md',
-          hash,
-          mtime: Date.parse(
-            detail.version?.when || detail.history?.createdDate || new Date().toISOString(),
-          ),
-          version,
-          extraJson: JSON.stringify({
-            space: detail.space?.key,
-            webui: detail._links?.webui,
-            ancestors: ancestorTitles,
-          }),
-        });
-
-        const hasChunks = await adapter.hasChunks(docId);
-        if (!hasChunks) {
-          await indexer.insertChunks(docId, chunkDoc(md));
-        }
-
-        processedCount++;
       }
       if (!page._links || !page._links.next) {
         break;
@@ -224,7 +259,87 @@ export async function ingestConfluence(adapter: DatabaseAdapter) {
       start += limit;
     }
 
-    console.info(`Space ${space}: Processed ${processedCount} pages, skipped ${skippedCount}`);
+    // Now process allowed pages that weren't found in the search
+    if (allowedPageIds) {
+      const missingPages = Array.from(allowedPageIds).filter((id) => !processedIds.has(id));
+      console.info(
+        `Processing ${missingPages.length} additional pages from parent page collection`,
+      );
+
+      for (const id of missingPages) {
+        try {
+          const detail = await cfFetch(
+            `/rest/api/content/${id}?expand=body.storage,version,space,_links,ancestors`,
+          );
+
+          // Check if this page is in the correct space
+          if (detail.space?.key !== space) {
+            console.info(
+              `Skipping page ${id} - belongs to space ${detail.space?.key}, not ${space}`,
+            );
+            continue;
+          }
+
+          const title = detail.title;
+
+          if (!shouldIncludePage(title)) {
+            skippedCount++;
+            console.info(`Skipping page "${title}" due to title filters`);
+            continue;
+          }
+
+          const storage = detail.body?.storage?.value || '';
+          const md = td.turndown(storage);
+          const uri = `confluence://${id}`;
+          const version = String(detail.version?.number ?? '');
+          const hash = sha256(md + version);
+
+          const ancestors = detail.ancestors || [];
+          const ancestorTitles = ancestors.map((a: { title: string }) => a.title).join(' > ');
+
+          const docId = await indexer.upsertDocument({
+            source: 'confluence',
+            uri,
+            repo: null,
+            path: null,
+            title,
+            lang: 'md',
+            hash,
+            mtime: Date.parse(
+              detail.version?.when || detail.history?.createdDate || new Date().toISOString(),
+            ),
+            version,
+            extraJson: JSON.stringify({
+              space: detail.space?.key,
+              webui: detail._links?.webui,
+              ancestors: ancestorTitles,
+            }),
+          });
+
+          const hasChunks = await adapter.hasChunks(docId);
+          if (!hasChunks) {
+            await indexer.insertChunks(docId, chunkDoc(md));
+          }
+
+          processedCount++;
+          console.info(`Processed additional page: ${title} (${id})`);
+        } catch (error) {
+          console.warn(
+            `Failed to process allowed page ${id}:`,
+            error instanceof Error ? error.message : error,
+          );
+          skippedCount++;
+        }
+      }
+    }
+
+    console.info(
+      `Space ${space}: Total processed ${processedCount} pages, skipped ${skippedCount}`,
+    );
+    console.info(
+      `Search found ${searchResultIds.size} pages, parent pages collected ${allowedPageIds?.size || 0} pages`,
+    );
+
     await indexer.setMeta(metaKey, new Date().toISOString());
   }
 }
