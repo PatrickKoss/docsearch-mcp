@@ -174,9 +174,12 @@ describe('PDF Ingestion', () => {
       writeFileSync(path.join(fixturesDir, 'corrupt.pdf'), 'error-pdf');
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
 
       await expect(ingestFiles(adapter)).resolves.not.toThrow();
 
+      process.env.NODE_ENV = originalEnv;
       expect(consoleSpy).toHaveBeenCalled();
 
       // Corrupt PDF should not be ingested

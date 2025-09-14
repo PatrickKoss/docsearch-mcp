@@ -79,7 +79,9 @@ export async function ingestFilesIncremental(
           content = data.text;
 
           if (!content.trim()) {
-            console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+            if (process.env.NODE_ENV !== 'test') {
+              console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+            }
             stats.filesSkipped++;
             continue;
           }
@@ -124,7 +126,9 @@ export async function ingestFilesIncremental(
           );
         }
       } catch (e) {
-        console.error('Incremental ingest file error:', abs, e);
+        if (process.env.NODE_ENV !== 'test') {
+          console.error('Incremental ingest file error:', abs, e);
+        }
         stats.filesSkipped++;
       }
     }
@@ -165,7 +169,9 @@ export async function ingestSingleFileIncremental(
       content = data.text;
 
       if (!content.trim()) {
-        console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+        }
         return null;
       }
 
@@ -193,7 +199,9 @@ export async function ingestSingleFileIncremental(
       extraJson,
     });
   } catch (e) {
-    console.error('Incremental ingest single file error:', filePath, e);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Incremental ingest single file error:', filePath, e);
+    }
     return null;
   }
 }

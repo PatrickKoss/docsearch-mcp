@@ -111,12 +111,197 @@ describe('Embeddings', () => {
         ok: false,
         status: 401,
         text: vi.fn().mockResolvedValue('Unauthorized'),
+        headers: {
+          get: vi.fn().mockReturnValue(null),
+        },
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
       await expect(embedder.embed(['text'])).rejects.toThrow(
         'Embeddings API error 401: Unauthorized',
       );
+    });
+
+    it('should handle rate limiting with retry-after header', async () => {
+      vi.useFakeTimers();
+
+      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const embedder = new OpenAIEmbedder();
+
+      // Mock console.log to verify output
+      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          // First call returns rate limit
+          return {
+            ok: false,
+            status: 429,
+            text: vi.fn().mockResolvedValue('Rate limit exceeded'),
+            headers: {
+              get: vi.fn().mockImplementation((header: string) => {
+                switch (header) {
+                  case 'retry-after':
+                    return '2';
+                  case 'x-ratelimit-remaining-requests':
+                    return '0';
+                  case 'x-ratelimit-remaining-tokens':
+                    return '1000';
+                  default:
+                    return null;
+                }
+              }),
+            },
+          };
+        } else {
+          // Second call succeeds
+          return {
+            ok: true,
+            json: vi.fn().mockResolvedValue({
+              data: [{ embedding: [0.1, 0.2, 0.3] }],
+            }),
+          };
+        }
+      });
+
+      const embedPromise = embedder.embed(['test text']);
+
+      // Fast forward through the retry delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const result = await embedPromise;
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Rate limit exceeded (attempt 1/5)'),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Remaining requests: 0'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Waiting 2s before retrying...'),
+      );
+
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('should handle rate limiting with exponential backoff when no retry-after header', async () => {
+      vi.useFakeTimers();
+
+      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const embedder = new OpenAIEmbedder();
+
+      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: false,
+            status: 429,
+            text: vi.fn().mockResolvedValue('Rate limit exceeded'),
+            headers: {
+              get: vi.fn().mockReturnValue(null),
+            },
+          };
+        } else {
+          return {
+            ok: true,
+            json: vi.fn().mockResolvedValue({
+              data: [{ embedding: [0.1, 0.2, 0.3] }],
+            }),
+          };
+        }
+      });
+
+      const embedPromise = embedder.embed(['test text']);
+
+      // Fast forward through the retry delay (1s for first attempt)
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const result = await embedPromise;
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Rate limit exceeded (attempt 1/5)'),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Waiting 1s before retrying...'),
+      );
+
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('should fail after max retries on persistent rate limiting', async () => {
+      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const embedder = new OpenAIEmbedder();
+
+      // Mock the sleep method to be synchronous
+      const sleepSpy = vi.spyOn(embedder as any, 'sleep').mockResolvedValue(undefined);
+
+      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      const mockResponse = {
+        ok: false,
+        status: 429,
+        text: vi.fn().mockResolvedValue('Rate limit exceeded'),
+        headers: {
+          get: vi.fn().mockReturnValue(null),
+        },
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(embedder.embed(['test text'])).rejects.toThrow('Rate limit exceeded');
+      expect(mockFetch).toHaveBeenCalledTimes(5); // maxRetries = 5
+      expect(sleepSpy).toHaveBeenCalledTimes(4); // 4 sleep calls between 5 attempts
+
+      consoleSpy.mockRestore();
+      sleepSpy.mockRestore();
+    });
+
+    it('should handle network errors with retry', async () => {
+      vi.useFakeTimers();
+
+      const { OpenAIEmbedder } = await import('../src/ingest/embeddings.js');
+      const embedder = new OpenAIEmbedder();
+
+      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      let callCount = 0;
+      mockFetch.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('Network error');
+        } else {
+          return {
+            ok: true,
+            json: vi.fn().mockResolvedValue({
+              data: [{ embedding: [0.1, 0.2, 0.3] }],
+            }),
+          };
+        }
+      });
+
+      const embedPromise = embedder.embed(['test text']);
+
+      // Fast forward through the retry delay (1s for first attempt)
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const result = await embedPromise;
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Network error (attempt 1/5): Network error'),
+      );
+
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
     });
   });
 

@@ -95,7 +95,9 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
           content = data.text;
 
           if (!content.trim()) {
-            console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+            if (process.env.NODE_ENV !== 'test') {
+              console.warn(`PDF appears to be empty or unreadable: ${abs}`);
+            }
             continue;
           }
 
@@ -112,7 +114,9 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
             try {
               imageDescription = await imageToTextProvider.describeImage(abs);
             } catch (error) {
-              console.warn(`Failed to describe image ${abs}:`, error);
+              if (process.env.NODE_ENV !== 'test') {
+                console.warn(`Failed to describe image ${abs}:`, error);
+              }
             }
           }
 
@@ -171,7 +175,9 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
           await indexer.insertChunks(docId, chunks);
         }
       } catch (e) {
-        console.error('ingest file error:', abs, e);
+        if (process.env.NODE_ENV !== 'test') {
+          console.error('ingest file error:', abs, e);
+        }
       }
     }
   }

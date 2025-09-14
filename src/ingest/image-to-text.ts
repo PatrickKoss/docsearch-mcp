@@ -91,7 +91,9 @@ export class OpenAIImageToTextProvider implements ImageToTextProvider {
       const data = (await response.json()) as OpenAIVisionResponse;
       return data.choices[0]?.message?.content?.trim() || '';
     } catch (error) {
-      console.warn(`Failed to describe image ${imagePath}:`, error);
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`Failed to describe image ${imagePath}:`, error);
+      }
       return '';
     }
   }
