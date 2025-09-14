@@ -242,15 +242,14 @@ describe('Search', () => {
   });
 
   describe('Security and error handling', () => {
-    it('should handle special characters in query safely', async () => {
+    it('should handle SQL injection attempts safely', async () => {
       const params: SearchParams = {
         query: "'; DROP TABLE documents; --",
         mode: 'keyword',
       };
 
-      // FTS5 should reject malformed queries with special characters - this is the safe behavior
-      // It prevents any SQL injection by throwing an error on invalid FTS5 syntax
-      await expect(performSearch(adapter, params)).rejects.toThrow(/fts5: syntax error/);
+      // With proper escaping, this should not throw and should be treated as a literal search
+      await expect(performSearch(adapter, params)).resolves.not.toThrow();
 
       // Verify the table still exists (injection attempt failed)
       // @ts-expect-error - accessing private property for testing
@@ -270,6 +269,215 @@ describe('Search', () => {
 
       // Should not throw - parameterized queries protect against injection in filters
       await expect(performSearch(adapter, params)).resolves.not.toThrow();
+    });
+  });
+
+  describe('Special characters in search queries', () => {
+    beforeEach(async () => {
+      // Add documents with special characters for testing
+      const specialDocs: DocumentInput[] = [
+        {
+          source: 'file',
+          uri: 'test://special-chars.md',
+          repo: 'test-repo',
+          path: 'docs/special-chars.md',
+          title: 'Special Characters Test',
+          lang: 'markdown',
+          hash: 'hash-special',
+          mtime: Date.now(),
+          version: '1.0',
+          extraJson: null,
+        },
+      ];
+
+      const specialChunks: ChunkInput[] = [
+        {
+          content: 'What are core components of model-serving?',
+          startLine: 1,
+          endLine: 1,
+          tokenCount: 10,
+        },
+        {
+          content: 'The model-serving system has multiple sub-components.',
+          startLine: 2,
+          endLine: 2,
+          tokenCount: 10,
+        },
+        {
+          content: 'Is this a yes/no question?',
+          startLine: 3,
+          endLine: 3,
+          tokenCount: 8,
+        },
+        {
+          content: 'Use the --verbose flag for more output.',
+          startLine: 4,
+          endLine: 4,
+          tokenCount: 9,
+        },
+        {
+          content: 'The function add(2+3) returns 5.',
+          startLine: 5,
+          endLine: 5,
+          tokenCount: 8,
+        },
+        {
+          content: 'Search for files with *.ts extension.',
+          startLine: 6,
+          endLine: 6,
+          tokenCount: 8,
+        },
+        {
+          content: 'The path is /usr/local/bin:$PATH.',
+          startLine: 7,
+          endLine: 7,
+          tokenCount: 8,
+        },
+      ];
+
+      for (const doc of specialDocs) {
+        const docId = await indexer.upsertDocument(doc);
+        await indexer.insertChunks(docId, specialChunks);
+      }
+    });
+
+    it('should handle queries with hyphens', async () => {
+      const params: SearchParams = {
+        query: 'model-serving',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Should find documents containing "model-serving"
+      const found = results.some((r) => r.snippet.toLowerCase().includes('model-serving'));
+      expect(found).toBe(true);
+    });
+
+    it('should handle the exact failing query from the bug report', async () => {
+      const params: SearchParams = {
+        query: 'what are core components of model-serving',
+        mode: 'keyword',
+      };
+
+      // This should not throw an error
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find relevant results
+      if (results.length > 0) {
+        const found = results.some(
+          (r) =>
+            r.snippet.toLowerCase().includes('model-serving') ||
+            r.snippet.toLowerCase().includes('components'),
+        );
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with question marks', async () => {
+      const params: SearchParams = {
+        query: 'yes/no question?',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find the question
+      if (results.length > 0) {
+        const found = results.some((r) => r.snippet.toLowerCase().includes('question'));
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with double hyphens', async () => {
+      const params: SearchParams = {
+        query: '--verbose',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find the flag reference
+      if (results.length > 0) {
+        const found = results.some((r) => r.snippet.toLowerCase().includes('verbose'));
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with parentheses', async () => {
+      const params: SearchParams = {
+        query: 'add(2+3)',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find the function reference
+      if (results.length > 0) {
+        const found = results.some((r) => r.snippet.toLowerCase().includes('add'));
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with asterisks', async () => {
+      const params: SearchParams = {
+        query: '*.ts',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find file extension reference
+      if (results.length > 0) {
+        const found = results.some((r) => r.snippet.toLowerCase().includes('.ts'));
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with colons', async () => {
+      const params: SearchParams = {
+        query: '/usr/local/bin:',
+        mode: 'keyword',
+      };
+
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+
+      // Should find path reference
+      if (results.length > 0) {
+        const found = results.some((r) => r.snippet.toLowerCase().includes('/usr/local/bin'));
+        expect(found).toBe(true);
+      }
+    });
+
+    it('should handle queries with double quotes', async () => {
+      const params: SearchParams = {
+        query: '"exact phrase"',
+        mode: 'keyword',
+      };
+
+      // Should not throw an error
+      await expect(performSearch(adapter, params)).resolves.not.toThrow();
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it('should handle mixed special characters', async () => {
+      const params: SearchParams = {
+        query: 'model-serving: "what are core components?"',
+        mode: 'keyword',
+      };
+
+      // Should not throw an error
+      await expect(performSearch(adapter, params)).resolves.not.toThrow();
+      const results = await performSearch(adapter, params);
+      expect(Array.isArray(results)).toBe(true);
     });
   });
 });

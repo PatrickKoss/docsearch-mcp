@@ -337,13 +337,33 @@ export class SqliteAdapter implements DatabaseAdapter {
     transaction();
   }
 
+  private escapeFts5Query(query: string): string {
+    // FTS5 special characters that need escaping
+    // Double quotes need to be escaped with another double quote
+    // Other special characters should be wrapped in double quotes as a phrase
+
+    // First, escape any existing double quotes
+    let escaped = query.replace(/"/g, '""');
+
+    // If the query contains special FTS5 operators/characters, wrap it in quotes
+    // This treats the entire query as a literal phrase
+    // Include: hyphen, plus, asterisk, parentheses, colon, forward slash, question mark, and other special chars
+    if (/[-+*():/?!@#$%^&=[\]{}|\\<>]/.test(escaped)) {
+      escaped = `"${escaped}"`;
+    }
+
+    return escaped;
+  }
+
   async keywordSearch(
     query: string,
     limit: number,
     filters: SearchFilters,
   ): Promise<SearchResult[]> {
     const filterConditions: string[] = [];
-    const params: Record<string, unknown> = { query, k: limit };
+    // Escape the query for FTS5
+    const escapedQuery = this.escapeFts5Query(query);
+    const params: Record<string, unknown> = { query: escapedQuery, k: limit };
 
     if (filters.source) {
       filterConditions.push('d.source = @source');
