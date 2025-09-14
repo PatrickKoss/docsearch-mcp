@@ -13,11 +13,29 @@ const td = new TurndownService({ headingStyle: 'atx' });
 async function cfFetch(path: string) {
   const base = CONFIG.CONFLUENCE_BASE_URL.replace(/\/$/, '');
   const url = `${base}${path}`;
-  const auth = Buffer.from(`${CONFIG.CONFLUENCE_EMAIL}:${CONFIG.CONFLUENCE_API_TOKEN}`).toString(
-    'base64',
-  );
+
+  // Support both Confluence Cloud (Basic auth) and Server (Bearer token)
+  let authHeader: string;
+  if (!CONFIG.CONFLUENCE_API_TOKEN) {
+    throw new Error('Confluence API token missing');
+  }
+
+  if (CONFIG.CONFLUENCE_AUTH_METHOD === 'bearer') {
+    // Confluence Server with Personal Access Token
+    authHeader = `Bearer ${CONFIG.CONFLUENCE_API_TOKEN}`;
+  } else {
+    // Confluence Cloud with API token (Basic auth)
+    if (!CONFIG.CONFLUENCE_EMAIL) {
+      throw new Error('Confluence email required for basic authentication');
+    }
+    const auth = Buffer.from(`${CONFIG.CONFLUENCE_EMAIL}:${CONFIG.CONFLUENCE_API_TOKEN}`).toString(
+      'base64',
+    );
+    authHeader = `Basic ${auth}`;
+  }
+
   const r = await fetch(url, {
-    headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+    headers: { Authorization: authHeader, Accept: 'application/json' },
   });
   if (!r.ok) {
     throw new Error(`Confluence ${r.status}: ${await r.text()}`);

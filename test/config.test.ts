@@ -101,6 +101,7 @@ describe('Configuration', () => {
       delete process.env.CONFLUENCE_BASE_URL;
       delete process.env.CONFLUENCE_EMAIL;
       delete process.env.CONFLUENCE_API_TOKEN;
+      delete process.env.CONFLUENCE_AUTH_METHOD;
       delete process.env.CONFLUENCE_SPACES;
 
       const { CONFIG } = await import('../src/shared/config.js');
@@ -108,6 +109,7 @@ describe('Configuration', () => {
       expect(CONFIG.CONFLUENCE_BASE_URL).toBe('');
       expect(CONFIG.CONFLUENCE_EMAIL).toBe('');
       expect(CONFIG.CONFLUENCE_API_TOKEN).toBe('');
+      expect(CONFIG.CONFLUENCE_AUTH_METHOD).toBe('basic');
       expect(CONFIG.CONFLUENCE_SPACES).toEqual([]);
     });
 
@@ -115,6 +117,7 @@ describe('Configuration', () => {
       process.env.CONFLUENCE_BASE_URL = 'https://company.atlassian.net/wiki';
       process.env.CONFLUENCE_EMAIL = 'user@company.com';
       process.env.CONFLUENCE_API_TOKEN = 'token123';
+      process.env.CONFLUENCE_AUTH_METHOD = 'bearer';
       process.env.CONFLUENCE_SPACES = 'PROJ,DOCS,WIKI';
 
       const { CONFIG } = await import('../src/shared/config.js');
@@ -122,7 +125,33 @@ describe('Configuration', () => {
       expect(CONFIG.CONFLUENCE_BASE_URL).toBe('https://company.atlassian.net/wiki');
       expect(CONFIG.CONFLUENCE_EMAIL).toBe('user@company.com');
       expect(CONFIG.CONFLUENCE_API_TOKEN).toBe('token123');
+      expect(CONFIG.CONFLUENCE_AUTH_METHOD).toBe('bearer');
       expect(CONFIG.CONFLUENCE_SPACES).toEqual(['PROJ', 'DOCS', 'WIKI']);
+    });
+
+    it('should validate Confluence auth method and default to basic', async () => {
+      // Test invalid auth method falls back to basic
+      process.env.CONFLUENCE_AUTH_METHOD = 'invalid';
+
+      const { CONFIG } = await import('../src/shared/config.js');
+
+      expect(CONFIG.CONFLUENCE_AUTH_METHOD).toBe('basic');
+    });
+
+    it('should accept valid Confluence auth methods', async () => {
+      // Test bearer method
+      process.env.CONFLUENCE_AUTH_METHOD = 'bearer';
+
+      vi.resetModules();
+      const { CONFIG: CONFIG1 } = await import('../src/shared/config.js');
+      expect(CONFIG1.CONFLUENCE_AUTH_METHOD).toBe('bearer');
+
+      // Test basic method
+      process.env.CONFLUENCE_AUTH_METHOD = 'basic';
+
+      vi.resetModules();
+      const { CONFIG: CONFIG2 } = await import('../src/shared/config.js');
+      expect(CONFIG2.CONFLUENCE_AUTH_METHOD).toBe('basic');
     });
   });
 

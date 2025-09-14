@@ -5,6 +5,7 @@ dotenv.config();
 
 type EmbeddingsProvider = 'openai' | 'tei';
 type DatabaseType = 'sqlite' | 'postgresql';
+type ConfluenceAuthMethod = 'basic' | 'bearer';
 
 interface AppConfig {
   readonly EMBEDDINGS_PROVIDER: EmbeddingsProvider;
@@ -21,6 +22,7 @@ interface AppConfig {
   readonly CONFLUENCE_BASE_URL: string;
   readonly CONFLUENCE_EMAIL: string;
   readonly CONFLUENCE_API_TOKEN: string;
+  readonly CONFLUENCE_AUTH_METHOD: ConfluenceAuthMethod;
   readonly CONFLUENCE_SPACES: readonly string[];
   readonly CONFLUENCE_PARENT_PAGES: readonly string[];
   readonly CONFLUENCE_TITLE_INCLUDES: readonly string[];
@@ -57,6 +59,13 @@ function validateDatabaseType(dbType: string): DatabaseType {
   return 'sqlite';
 }
 
+function validateConfluenceAuthMethod(method: string): ConfluenceAuthMethod {
+  if (method === 'basic' || method === 'bearer') {
+    return method;
+  }
+  return 'basic';
+}
+
 export const CONFIG: AppConfig = {
   EMBEDDINGS_PROVIDER: validateEmbeddingsProvider(process.env.EMBEDDINGS_PROVIDER || 'openai'),
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
@@ -72,6 +81,9 @@ export const CONFIG: AppConfig = {
   CONFLUENCE_BASE_URL: process.env.CONFLUENCE_BASE_URL || '',
   CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',
   CONFLUENCE_API_TOKEN: process.env.CONFLUENCE_API_TOKEN || '',
+  CONFLUENCE_AUTH_METHOD: validateConfluenceAuthMethod(
+    process.env.CONFLUENCE_AUTH_METHOD || 'basic',
+  ),
   CONFLUENCE_SPACES: splitCsv(process.env.CONFLUENCE_SPACES, ''),
   CONFLUENCE_PARENT_PAGES: splitCsv(process.env.CONFLUENCE_PARENT_PAGES, ''),
   CONFLUENCE_TITLE_INCLUDES: splitCsv(process.env.CONFLUENCE_TITLE_INCLUDES, ''),

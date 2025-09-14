@@ -34,7 +34,11 @@ vi.mock('../../src/shared/config.js', () => ({
     CONFLUENCE_BASE_URL: '',
     CONFLUENCE_EMAIL: '',
     CONFLUENCE_API_TOKEN: '',
+    CONFLUENCE_AUTH_METHOD: 'basic',
     CONFLUENCE_SPACES: [],
+    CONFLUENCE_PARENT_PAGES: [],
+    CONFLUENCE_TITLE_INCLUDES: [],
+    CONFLUENCE_TITLE_EXCLUDES: [],
     FILE_ROOTS: ['./test/fixtures-cli-images'],
     FILE_INCLUDE_GLOBS: ['**/*.{png,jpg,jpeg,gif,svg,webp,md,txt,json}'],
     FILE_EXCLUDE_GLOBS: ['**/node_modules/**', '**/.git/**'],
@@ -392,6 +396,16 @@ async function runCLI(
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        // Override .env file with test values to use NoOpEmbedder
+        EMBEDDINGS_PROVIDER: 'openai',
+        OPENAI_API_KEY: '', // Empty key triggers NoOpEmbedder fallback
+        OPENAI_BASE_URL: '',
+        OPENAI_EMBED_MODEL: 'text-embedding-3-small',
+        OPENAI_EMBED_DIM: '1536',
+        CONFLUENCE_AUTH_METHOD: 'basic',
+        CONFLUENCE_BASE_URL: '',
+        CONFLUENCE_EMAIL: '',
+        CONFLUENCE_API_TOKEN: '',
       },
     });
 
