@@ -171,7 +171,7 @@ docker run --rm -i \
   -v /absolute/path/to/data:/app/data \
   --env-file .env \
   --user $(id -u):$(id -g) \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.5
 
 # For MCP server integration (background service)
 docker run -d --name docsearch-mcp \
@@ -179,7 +179,7 @@ docker run -d --name docsearch-mcp \
   -v /absolute/path/to/data:/app/data \
   --env-file .env \
   --user $(id -u):$(id -g) \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.5
 ```
 
 **Alternative approach with Docker volumes:**
@@ -539,7 +539,7 @@ Create a `docker-compose.yml` file:
 version: '3.8'
 services:
   docsearch-mcp:
-    image: ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+    image: ghcr.io/patrickkoss/docsearch-mcp:v0.0.5
     volumes:
       - ./documents:/app/documents
       - docsearch-data:/app/data
@@ -717,7 +717,7 @@ docker run -d \
   -v $(pwd)/documents:/app/documents \
   -v docsearch-data:/app/data \
   --env-file .env \
-  ghcr.io/patrickkoss/docsearch-mcp:v0.0.2
+  ghcr.io/patrickkoss/docsearch-mcp:v0.0.5
 
 # 4. Index documents
 docker exec docsearch-mcp npx docsearch-mcp ingest all
