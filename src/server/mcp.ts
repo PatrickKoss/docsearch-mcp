@@ -82,7 +82,19 @@ server.registerResource(
     const lines = chunkContent.start_line
       ? `(lines ${chunkContent.start_line}-${chunkContent.end_line})`
       : '';
-    const header = `# ${title}\n\n> ${chunkContent.source} • ${chunkContent.repo || ''} ${location} ${lines}\n\n`;
+
+    // Extract source URL for Confluence documents
+    // URI format: confluence://{pageId}
+    let sourceUrl = '';
+    if (chunkContent.source === 'confluence' && CONFIG.CONFLUENCE_BASE_URL) {
+      const uriMatch = chunkContent.uri.match(/^confluence:\/\/(.+)$/);
+      if (uriMatch) {
+        const pageId = uriMatch[1];
+        sourceUrl = ` • ${CONFIG.CONFLUENCE_BASE_URL.replace(/\/$/, '')}/pages/viewpage.action?pageId=${pageId}`;
+      }
+    }
+
+    const header = `# ${title}\n\n> ${chunkContent.source} • ${chunkContent.repo || ''} ${location} ${lines}${sourceUrl}\n\n`;
 
     return { contents: [{ uri: `docchunk://${id}`, text: header + chunkContent.content }] };
   },
@@ -177,7 +189,21 @@ server.registerTool(
       const name = r.title || r.path || r.uri;
       const repoInfo = r.repo ? ` • ${r.repo}` : '';
       const pathInfo = r.path ? ` • ${r.path}` : '';
-      const description = `${r.source}${repoInfo}${pathInfo}`;
+
+      // Extract source URL for Confluence documents
+      let sourceUrl = '';
+      if (r.source === 'confluence' && r.extra_json && CONFIG.CONFLUENCE_BASE_URL) {
+        try {
+          const extraData = JSON.parse(r.extra_json);
+          if (extraData.webui) {
+            sourceUrl = ` • ${CONFIG.CONFLUENCE_BASE_URL.replace(/\/$/, '')}${extraData.webui}`;
+          }
+        } catch (_error) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      const description = `${r.source}${repoInfo}${pathInfo}${sourceUrl}`;
 
       content.push({
         type: 'resource_link',
