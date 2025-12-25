@@ -90,9 +90,11 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
         if (isPdf(abs)) {
           console.info(`Processing PDF: ${abs}`);
           const buffer = await fs.readFile(abs);
-          const pdfParse = (await import('pdf-parse')).default;
-          const data = await pdfParse(buffer);
-          content = data.text;
+          const { PDFParse } = await import('pdf-parse');
+          const parser = new PDFParse({ data: buffer });
+          const result = await parser.getText();
+          const info = await parser.getInfo();
+          content = result.text;
 
           if (!content.trim()) {
             if (process.env.NODE_ENV !== 'test') {
@@ -102,8 +104,8 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
           }
 
           extraJson = JSON.stringify({
-            pages: data.numpages,
-            info: data.info,
+            pages: info.total,
+            info: info.info,
           });
         } else if (isImage(abs)) {
           console.info(`Processing image: ${abs}`);

@@ -10,11 +10,26 @@ import { testDbPath } from '../setup.js';
 
 // Mock pdf-parse to avoid needing actual PDF files
 vi.mock('pdf-parse', () => ({
-  default: vi.fn((buffer) => {
-    const text = buffer.toString();
+  PDFParse: vi.fn().mockImplementation(function (options) {
+    const text = options.data?.toString() || '';
+
+    const mockTextResult = {
+      text: '',
+      pages: [] as any[],
+    };
+
+    const mockInfoResult = {
+      total: 1,
+      info: {},
+      metadata: null,
+      outline: null,
+      permissions: null,
+      pageLabels: null,
+      pages: [] as any[],
+    };
+
     if (text.includes('mock-pdf-content')) {
-      return Promise.resolve({
-        text: `This is a mock PDF document.
+      mockTextResult.text = `This is a mock PDF document.
 
 It contains multiple paragraphs with various content.
 Some lines might have    excessive   whitespace   or formatting.
@@ -26,30 +41,28 @@ There could be multiple line breaks between sections.
 Page breaks and other artifacts are common in PDF extraction.
 This text represents what would be extracted from a PDF file.
 
-The content should be properly chunked and indexed for search.`,
-        numpages: 2,
-        info: {
-          Title: 'Mock PDF Document',
-          Author: 'Test Author',
-          CreationDate: new Date().toISOString(),
-        },
-      });
-    }
-    if (text.includes('empty-pdf')) {
-      return Promise.resolve({
-        text: '',
-        numpages: 1,
-        info: {},
-      });
-    }
-    if (text.includes('error-pdf')) {
+The content should be properly chunked and indexed for search.`;
+      mockInfoResult.total = 2;
+      mockInfoResult.info = {
+        Title: 'Mock PDF Document',
+        Author: 'Test Author',
+        CreationDate: new Date().toISOString(),
+      };
+    } else if (text.includes('empty-pdf')) {
+      mockTextResult.text = '';
+      mockInfoResult.total = 1;
+    } else if (text.includes('error-pdf')) {
       throw new Error('PDF parsing failed');
+    } else {
+      mockTextResult.text = 'Default PDF content for testing.';
+      mockInfoResult.total = 1;
     }
-    return Promise.resolve({
-      text: 'Default PDF content for testing.',
-      numpages: 1,
-      info: {},
-    });
+
+    return {
+      getText: vi.fn().mockResolvedValue(mockTextResult),
+      getInfo: vi.fn().mockResolvedValue(mockInfoResult),
+      destroy: vi.fn().mockResolvedValue(undefined),
+    };
   }),
 }));
 

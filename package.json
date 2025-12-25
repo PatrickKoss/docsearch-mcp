@@ -1,6 +1,6 @@
 {
   "name": "docsearch-mcp",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "MCP server and CLI tool for local document search with hybrid semantic+keyword search across PDFs, files, and Confluence",
   "keywords": [
     "mcp",
@@ -28,7 +28,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0 <=25.x"
   },
   "type": "module",
   "scripts": {
@@ -56,44 +56,44 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.5",
-    "@types/pg": "^8.15.5",
-    "better-sqlite3": "12.4.1",
-    "chokidar": "^4.0.3",
-    "commander": "^14.0.0",
-    "dotenv": "^17.2.2",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@types/pg": "^8.16.0",
+    "better-sqlite3": "12.5.0",
+    "chokidar": "^5.0.0",
+    "commander": "^14.0.2",
+    "dotenv": "^17.2.3",
     "fast-glob": "^3.3.3",
-    "js-yaml": "^4.1.0",
-    "openai": "^6.7.0",
-    "pdf-parse": "^1.1.1",
+    "js-yaml": "^4.1.1",
+    "openai": "^6.15.0",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.16.3",
     "pgvector": "^0.2.1",
     "sqlite-vec": "0.1.7-alpha.2",
-    "turndown": "^7.2.1",
+    "turndown": "^7.2.2",
     "undici": "^7.16.0",
-    "zod": "^3.25.76"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.34.0",
-    "@testcontainers/postgresql": "^11.5.1",
+    "@eslint/js": "^9.39.2",
+    "@testcontainers/postgresql": "^11.10.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^24.3.1",
+    "@types/node": "^25.0.3",
     "@types/pdf-parse": "^1.1.5",
-    "@typescript-eslint/eslint-plugin": "^8.42.0",
-    "@typescript-eslint/parser": "^8.42.0",
-    "@vitest/ui": "^3.2.4",
-    "eslint": "^9.34.0",
+    "@typescript-eslint/eslint-plugin": "^8.50.1",
+    "@typescript-eslint/parser": "^8.50.1",
+    "@vitest/ui": "^4.0.16",
+    "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.1.7",
-    "prettier": "^3.6.2",
-    "testcontainers": "^11.5.1",
-    "tsx": "^4.20.5",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "prettier": "^3.7.4",
+    "testcontainers": "^11.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
   },
   "pnpm": {
     "patchedDependencies": {},

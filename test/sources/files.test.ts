@@ -330,12 +330,16 @@ module.exports = config;`,
       writeFileSync(path.join(fixturesDir, 'good.ts'), 'const x = 1;');
 
       const originalReadFile = fs.readFile;
-      vi.spyOn(fs, 'readFile').mockImplementation(async (filePath, encoding) => {
-        if (filePath.toString().includes('sample.ts')) {
-          throw new Error('Read error');
-        }
-        return originalReadFile(filePath, encoding);
-      });
+      const readFileSpy = vi
+        .spyOn(fs, 'readFile')
+        .mockImplementation(async (filePath, encoding) => {
+          const pathStr = filePath.toString();
+          if (pathStr.includes('sample.ts')) {
+            throw new Error('Read error');
+          }
+          // Use type assertion to handle overload signatures properly
+          return originalReadFile(filePath as never, encoding as never) as never;
+        });
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const originalEnv = process.env.NODE_ENV;
@@ -343,12 +347,17 @@ module.exports = config;`,
 
       await ingestFiles(adapter);
 
-      process.env.NODE_ENV = originalEnv;
+      // Check assertions before restoring mocks
       expect(consoleSpy).toHaveBeenCalled();
 
       // @ts-expect-error - accessing private property for testing
       const goodDoc = adapter.db.prepare("SELECT * FROM documents WHERE uri LIKE '%good.ts'").get();
       expect(goodDoc).toBeTruthy();
+
+      // Cleanup
+      process.env.NODE_ENV = originalEnv;
+      readFileSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
   });
 });

@@ -240,9 +240,8 @@ describe('Image-to-Text', () => {
         },
       }));
 
-      const { getImageToTextProvider, OpenAIImageToTextProvider: ImportedProvider } = await import(
-        '../src/ingest/image-to-text.js'
-      );
+      const { getImageToTextProvider, OpenAIImageToTextProvider: ImportedProvider } =
+        await import('../src/ingest/image-to-text.js');
       const provider = getImageToTextProvider();
 
       expect(provider).toBeInstanceOf(ImportedProvider);

@@ -10,6 +10,7 @@ export default defineConfig({
     pool: 'forks',
     isolate: true,
     fileParallelism: false,
+    restoreMocks: true,
     env: {
       NODE_ENV: 'test',
     },
