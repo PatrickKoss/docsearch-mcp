@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.25.1
-        version: 1.25.1(hono@4.11.2)(zod@4.2.1)
+        version: 1.25.1(hono@4.11.2)(zod@4.3.5)
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
@@ -34,7 +34,7 @@ importers:
         version: 4.1.1
       openai:
         specifier: ^6.15.0
-        version: 6.15.0(zod@4.2.1)
+        version: 6.15.0(zod@4.3.5)
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
@@ -55,7 +55,7 @@ importers:
         version: 7.16.0
       zod:
         specifier: ^4.2.1
-        version: 4.2.1
+        version: 4.3.5
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.2
@@ -2685,8 +2685,8 @@ packages:
     peerDependencies:
       zod: ^3.25 || ^4
 
-  zod@4.2.1:
-    resolution: {integrity: sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==}
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
 snapshots:
 
@@ -2865,7 +2865,7 @@ snapshots:
 
   '@mixmark-io/domino@2.2.0': {}
 
-  '@modelcontextprotocol/sdk@1.25.1(hono@4.11.2)(zod@4.2.1)':
+  '@modelcontextprotocol/sdk@1.25.1(hono@4.11.2)(zod@4.3.5)':
     dependencies:
       '@hono/node-server': 1.19.7(hono@4.11.2)
       ajv: 8.17.1
@@ -2881,8 +2881,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.2.1
-      zod-to-json-schema: 3.25.1(zod@4.2.1)
+      zod: 4.3.5
+      zod-to-json-schema: 3.25.1(zod@4.3.5)
     transitivePeerDependencies:
       - hono
       - supports-color
@@ -4521,9 +4521,9 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@6.15.0(zod@4.2.1):
+  openai@6.15.0(zod@4.3.5):
     optionalDependencies:
-      zod: 4.2.1
+      zod: 4.3.5
 
   optionator@0.9.4:
     dependencies:
@@ -5453,8 +5453,8 @@ snapshots:
       compress-commons: 6.0.2
       readable-stream: 4.7.0
 
-  zod-to-json-schema@3.25.1(zod@4.2.1):
+  zod-to-json-schema@3.25.1(zod@4.3.5):
     dependencies:
-      zod: 4.2.1
+      zod: 4.3.5
 
-  zod@4.2.1: {}
+  zod@4.3.5: {}
