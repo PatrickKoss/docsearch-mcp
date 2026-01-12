@@ -34,7 +34,7 @@ importers:
         version: 4.1.1
       openai:
         specifier: ^6.15.0
-        version: 6.15.0(zod@4.2.1)
+        version: 6.16.0(zod@4.2.1)
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
@@ -1899,8 +1899,8 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
-  openai@6.15.0:
-    resolution: {integrity: sha512-F1Lvs5BoVvmZtzkUEVyh8mDQPPFolq4F+xdsx/DO8Hee8YF3IGAlZqUIsF+DVGhqf4aU0a3bTghsxB6OIsRy1g==}
+  openai@6.16.0:
+    resolution: {integrity: sha512-fZ1uBqjFUjXzbGc35fFtYKEOxd20kd9fDpFeqWtsOZWiubY8CZ1NAlXHW3iathaFvqmNtCWMIsosCuyeI7Joxg==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
@@ -4521,7 +4521,7 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@6.15.0(zod@4.2.1):
+  openai@6.16.0(zod@4.2.1):
     optionalDependencies:
       zod: 4.2.1
 
