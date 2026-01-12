@@ -58,7 +58,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/pg": "^8.16.0",
-    "better-sqlite3": "12.5.0",
+    "better-sqlite3": "12.6.0",
     "chokidar": "^5.0.0",
     "commander": "^14.0.2",
     "dotenv": "^17.2.3",
