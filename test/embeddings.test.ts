@@ -121,6 +121,7 @@ describe('Embeddings', () => {
         body: JSON.stringify({
           model: 'text-embedding-3-small',
           input: ['text1', 'text2'],
+          encoding_format: 'float',
         }),
       });
 

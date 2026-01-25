@@ -70,7 +70,7 @@ export class OpenAIEmbedder implements Embedder {
           body: JSON.stringify({
             model: this.model,
             input: texts,
-            encoding_format: float
+            encoding_format: 'float',
           }),
         });
 
