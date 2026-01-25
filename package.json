@@ -88,6 +88,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^5.5.5",
+    "hono": "^4.11.5",
     "husky": "^9.1.7",
     "prettier": "^3.8.1",
     "testcontainers": "^11.11.0",
