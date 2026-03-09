@@ -58,7 +58,6 @@ export class ChangeTracker {
 
     // Find the first and last differing lines to identify the changed region
     let firstDiff = -1;
-    let lastDiff = -1;
 
     // Find first differing line
     const minLength = Math.min(oldLines.length, newLines.length);
@@ -90,7 +89,7 @@ export class ChangeTracker {
     }
 
     // The changed region is from firstDiff to the last different line
-    lastDiff = Math.max(oldEnd, newEnd);
+    const lastDiff = Math.max(oldEnd, newEnd);
 
     // Convert to 1-indexed line numbers
     const start = firstDiff + 1;
