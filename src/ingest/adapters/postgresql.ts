@@ -16,7 +16,7 @@ export interface PostgresConfig {
 }
 
 export class PostgresAdapter implements DatabaseAdapter {
-  private client: Client;
+  protected client: Client;
 
   constructor(private readonly config: PostgresConfig) {
     this.client = new Client({
@@ -33,7 +33,7 @@ export class PostgresAdapter implements DatabaseAdapter {
     await this.client.end();
   }
 
-  private async ensureSchema(): Promise<void> {
+  protected async ensureSchema(): Promise<void> {
     // Enable pgvector extension
     await this.client.query('CREATE EXTENSION IF NOT EXISTS vector');
 
@@ -98,7 +98,7 @@ export class PostgresAdapter implements DatabaseAdapter {
     // Note: Vector index will be created lazily in ensureVectorIndex() after embeddings exist
   }
 
-  private async ensureVectorIndex(): Promise<void> {
+  protected async ensureVectorIndex(): Promise<void> {
     // Check if vector index already exists
     const indexExists = await this.client.query(`
       SELECT 1 FROM pg_indexes 

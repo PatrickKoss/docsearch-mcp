@@ -131,8 +131,8 @@ export class EnvConfigProvider implements ConfigurationProvider {
     return 'openai';
   }
 
-  private validateDatabaseType(dbType: string): 'sqlite' | 'postgresql' {
-    if (dbType === 'sqlite' || dbType === 'postgresql') {
+  private validateDatabaseType(dbType: string): 'sqlite' | 'postgresql' | 'vectorchord' {
+    if (dbType === 'sqlite' || dbType === 'postgresql' || dbType === 'vectorchord') {
       return dbType;
     }
     return 'sqlite';

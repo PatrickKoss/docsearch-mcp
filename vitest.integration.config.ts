@@ -10,11 +10,7 @@ export default defineConfig({
     },
     // Run integration tests sequentially to avoid resource conflicts
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    singleFork: true,
     setupFiles: ['./test/integrations/setup.ts'],
   },
 });

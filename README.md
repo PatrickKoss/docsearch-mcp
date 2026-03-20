@@ -12,7 +12,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 - **📁 Multi-Source**: Index local files (code, docs, PDFs) and Confluence spaces
 - **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
 - **🖼️ Image Search**: AI-powered image description and search for diagrams, screenshots, and charts
-- **🗄️ Database Flexibility**: Support for SQLite (local-first) and PostgreSQL (scalable)
+- **🗄️ Database Flexibility**: Support for SQLite (local-first), PostgreSQL (scalable), and VectorChord (high-performance vector search)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
 - **💻 CLI Tool**: Standalone command-line interface with multiple output formats
 - **⚡ Real-time Updates**: File watching with automatic re-indexing
@@ -235,10 +235,22 @@ IMAGE_TO_TEXT_MODEL=gpt-4o-mini
 DB_TYPE=sqlite
 DB_PATH=./data/index.db
 
-# OR use PostgreSQL (for scalability)
+# OR use PostgreSQL with pgvector (for scalability)
 DB_TYPE=postgresql
 POSTGRES_CONNECTION_STRING=postgresql://user:password@localhost:5432/docsearch
+
+# OR use PostgreSQL with VectorChord (high-performance vector search)
+DB_TYPE=vectorchord
+POSTGRES_CONNECTION_STRING=postgresql://user:password@localhost:5432/docsearch
+# Optional VectorChord tuning (shown with defaults)
+VECTORCHORD_RESIDUAL_QUANTIZATION=true
+VECTORCHORD_LISTS=100
+VECTORCHORD_SPHERICAL_CENTROIDS=true
+VECTORCHORD_BUILD_THREADS=4
+VECTORCHORD_PROBES=10
 ```
+
+[VectorChord](https://github.com/tensorchord/VectorChord) is a PostgreSQL extension that uses RaBitQ compression and hierarchical K-means for faster indexing and lower storage costs compared to pgvector's IVFFlat. It is fully pgvector-compatible and requires the `vchord` extension installed in your PostgreSQL instance (or use the `tensorchord/vchord-suite` Docker image).
 
 ### Confluence (Optional)
 
@@ -302,28 +314,28 @@ All CLI flags support configuration precedence: **CLI args > Environment variabl
 
 ##### Global Options (Available for all commands)
 
-| Flag                                    | Environment Variable         | Default                                                       | Description                              |
-| --------------------------------------- | ---------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| `-c, --config <file>`                   | -                            | `.env`                                                        | Configuration file path                  |
-| `--embeddings-provider <provider>`      | `EMBEDDINGS_PROVIDER`        | `openai`                                                      | Embeddings provider (`openai` or `tei`)  |
-| `--openai-api-key <key>`                | `OPENAI_API_KEY`             | -                                                             | OpenAI API key                           |
-| `--openai-base-url <url>`               | `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)   |
-| `--openai-embed-model <model>`          | `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                   |
-| `--openai-embed-dim <dimension>`        | `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension               |
-| `--tei-endpoint <url>`                  | `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint       |
-| `--enable-image-to-text`                | `ENABLE_IMAGE_TO_TEXT`       | `false`                                                       | Enable image-to-text processing          |
-| `--image-to-text-provider <provider>`   | `IMAGE_TO_TEXT_PROVIDER`     | `openai`                                                      | Image-to-text provider                   |
-| `--image-to-text-model <model>`         | `IMAGE_TO_TEXT_MODEL`        | `gpt-4o-mini`                                                 | Image-to-text model                      |
-| `--confluence-base-url <url>`           | `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                      |
-| `--confluence-email <email>`            | `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                         |
-| `--confluence-api-token <token>`        | `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                     |
-| `--confluence-spaces <spaces>`          | `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)      |
-| `--file-roots <roots>`                  | `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)    |
-| `--file-include-globs <globs>`          | `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                    |
-| `--file-exclude-globs <globs>`          | `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                    |
-| `--db-type <type>`                      | `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite` or `postgresql`) |
-| `--db-path <path>`                      | `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                     |
-| `--postgres-connection-string <string>` | `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string             |
+| Flag                                    | Environment Variable         | Default                                                       | Description                                              |
+| --------------------------------------- | ---------------------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| `-c, --config <file>`                   | -                            | `.env`                                                        | Configuration file path                                  |
+| `--embeddings-provider <provider>`      | `EMBEDDINGS_PROVIDER`        | `openai`                                                      | Embeddings provider (`openai` or `tei`)                  |
+| `--openai-api-key <key>`                | `OPENAI_API_KEY`             | -                                                             | OpenAI API key                                           |
+| `--openai-base-url <url>`               | `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)                   |
+| `--openai-embed-model <model>`          | `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                                   |
+| `--openai-embed-dim <dimension>`        | `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension                               |
+| `--tei-endpoint <url>`                  | `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint                       |
+| `--enable-image-to-text`                | `ENABLE_IMAGE_TO_TEXT`       | `false`                                                       | Enable image-to-text processing                          |
+| `--image-to-text-provider <provider>`   | `IMAGE_TO_TEXT_PROVIDER`     | `openai`                                                      | Image-to-text provider                                   |
+| `--image-to-text-model <model>`         | `IMAGE_TO_TEXT_MODEL`        | `gpt-4o-mini`                                                 | Image-to-text model                                      |
+| `--confluence-base-url <url>`           | `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                                      |
+| `--confluence-email <email>`            | `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                                         |
+| `--confluence-api-token <token>`        | `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                                     |
+| `--confluence-spaces <spaces>`          | `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)                      |
+| `--file-roots <roots>`                  | `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)                    |
+| `--file-include-globs <globs>`          | `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                                    |
+| `--file-exclude-globs <globs>`          | `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                                    |
+| `--db-type <type>`                      | `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite`, `postgresql`, or `vectorchord`) |
+| `--db-path <path>`                      | `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                                     |
+| `--postgres-connection-string <string>` | `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string                             |
 
 ##### Ingest Command
 
@@ -453,22 +465,22 @@ All configuration options are passed via environment variables to the MCP server
 
 ##### Optional Configuration
 
-| Environment Variable         | Default                                                       | Description                              |
-| ---------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)   |
-| `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                   |
-| `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension               |
-| `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint       |
-| `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)    |
-| `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                    |
-| `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                    |
-| `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                      |
-| `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                         |
-| `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                     |
-| `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)      |
-| `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite` or `postgresql`) |
-| `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                     |
-| `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string             |
+| Environment Variable         | Default                                                       | Description                                              |
+| ---------------------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| `OPENAI_BASE_URL`            | -                                                             | OpenAI base URL (for custom endpoints)                   |
+| `OPENAI_EMBED_MODEL`         | `text-embedding-3-small`                                      | OpenAI embedding model                                   |
+| `OPENAI_EMBED_DIM`           | `1536`                                                        | OpenAI embedding dimension                               |
+| `TEI_ENDPOINT`               | -                                                             | Text Embeddings Inference endpoint                       |
+| `FILE_ROOTS`                 | `.`                                                           | File roots to index (comma-separated)                    |
+| `FILE_INCLUDE_GLOBS`         | `**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf}` | File include patterns                                    |
+| `FILE_EXCLUDE_GLOBS`         | `**/{.git,node_modules,dist,build,target}/**`                 | File exclude patterns                                    |
+| `CONFLUENCE_BASE_URL`        | -                                                             | Confluence base URL                                      |
+| `CONFLUENCE_EMAIL`           | -                                                             | Confluence email                                         |
+| `CONFLUENCE_API_TOKEN`       | -                                                             | Confluence API token                                     |
+| `CONFLUENCE_SPACES`          | -                                                             | Confluence spaces (comma-separated)                      |
+| `DB_TYPE`                    | `sqlite`                                                      | Database type (`sqlite`, `postgresql`, or `vectorchord`) |
+| `DB_PATH`                    | `./data/index.db`                                             | SQLite database path                                     |
+| `POSTGRES_CONNECTION_STRING` | -                                                             | PostgreSQL connection string                             |
 
 #### Quick Setup
 
@@ -610,6 +622,26 @@ Then configure MCP:
         "DB_TYPE": "postgresql",
         "POSTGRES_CONNECTION_STRING": "postgresql://user:pass@localhost:5432/docsearch",
         "FILE_ROOTS": ".,/other/projects"
+      }
+    }
+  }
+}
+```
+
+##### VectorChord Setup (High-Performance)
+
+```json
+{
+  "mcpServers": {
+    "docsearch": {
+      "command": "npx",
+      "args": ["docsearch-mcp", "start"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key",
+        "DB_TYPE": "vectorchord",
+        "POSTGRES_CONNECTION_STRING": "postgresql://user:pass@localhost:5432/docsearch",
+        "FILE_ROOTS": ".,/other/projects",
+        "VECTORCHORD_PROBES": "20"
       }
     }
   }
@@ -1060,7 +1092,8 @@ The system follows a clean ports and adapters (hexagonal) architecture:
     ┌─────────────────────────────────┐
     │      Database Layer             │
     │   SQLite (sqlite-vec) OR        │
-    │   PostgreSQL (pgvector)         │
+    │   PostgreSQL (pgvector) OR      │
+    │   PostgreSQL (VectorChord)      │
     │   • Document metadata          │
     │   • Text chunks                │
     │   • Vector embeddings          │
@@ -1118,4 +1151,5 @@ This project is licensed under the Apache License Version 2 - see the [LICENSE](
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) for the integration standard
 - [sqlite-vec](https://github.com/asg017/sqlite-vec) for vector search capabilities
+- [VectorChord](https://github.com/tensorchord/VectorChord) for high-performance PostgreSQL vector search
 - [Claude Code](https://claude.ai/code) for the AI-powered development experience

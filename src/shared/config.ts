@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 
 type EmbeddingsProvider = 'openai' | 'tei';
-type DatabaseType = 'sqlite' | 'postgresql';
+type DatabaseType = 'sqlite' | 'postgresql' | 'vectorchord';
 type ConfluenceAuthMethod = 'basic' | 'bearer';
 
 interface AppConfig {
@@ -32,6 +32,12 @@ interface AppConfig {
   readonly DB_TYPE: DatabaseType;
   readonly DB_PATH: string;
   readonly POSTGRES_CONNECTION_STRING: string;
+
+  readonly VECTORCHORD_RESIDUAL_QUANTIZATION: boolean;
+  readonly VECTORCHORD_LISTS: number;
+  readonly VECTORCHORD_SPHERICAL_CENTROIDS: boolean;
+  readonly VECTORCHORD_BUILD_THREADS: number;
+  readonly VECTORCHORD_PROBES: number;
 }
 
 function splitCsv(v: string | undefined, def: string): readonly string[] {
@@ -50,7 +56,7 @@ function validateEmbeddingsProvider(provider: string): EmbeddingsProvider {
 }
 
 function validateDatabaseType(dbType: string): DatabaseType {
-  if (dbType === 'sqlite' || dbType === 'postgresql') {
+  if (dbType === 'sqlite' || dbType === 'postgresql' || dbType === 'vectorchord') {
     return dbType;
   }
   return 'sqlite';
@@ -106,6 +112,12 @@ function initializeConfig(): AppConfig {
       DB_TYPE: validateDatabaseType(process.env.DB_TYPE || 'sqlite'),
       DB_PATH: process.env.DB_PATH || './data/index.db',
       POSTGRES_CONNECTION_STRING: process.env.POSTGRES_CONNECTION_STRING || '',
+
+      VECTORCHORD_RESIDUAL_QUANTIZATION: process.env.VECTORCHORD_RESIDUAL_QUANTIZATION !== 'false',
+      VECTORCHORD_LISTS: parseInt(process.env.VECTORCHORD_LISTS || '100', 10),
+      VECTORCHORD_SPHERICAL_CENTROIDS: process.env.VECTORCHORD_SPHERICAL_CENTROIDS !== 'false',
+      VECTORCHORD_BUILD_THREADS: parseInt(process.env.VECTORCHORD_BUILD_THREADS || '4', 10),
+      VECTORCHORD_PROBES: parseInt(process.env.VECTORCHORD_PROBES || '10', 10),
     } as const;
   }
   return _config;

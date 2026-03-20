@@ -75,7 +75,7 @@ export interface Configuration {
     readonly excludeGlobs: readonly string[];
   };
   readonly database: {
-    readonly type: 'sqlite' | 'postgresql';
+    readonly type: 'sqlite' | 'postgresql' | 'vectorchord';
     readonly path: string;
     readonly connectionString: string;
   };

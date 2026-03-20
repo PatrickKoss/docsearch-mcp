@@ -141,7 +141,8 @@ Environment variables in `.env`:
 - **Embeddings**: `EMBEDDINGS_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_EMBED_MODEL`
 - **Confluence**: `CONFLUENCE_BASE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN`, `CONFLUENCE_SPACES`
 - **Files**: `FILE_ROOTS`, `FILE_INCLUDE_GLOBS`, `FILE_EXCLUDE_GLOBS`
-- **Database**: `DB_PATH` (defaults to `./data/index.db`)
+- **Database**: `DB_TYPE` (`sqlite`, `postgresql`, or `vectorchord`), `DB_PATH` (defaults to `./data/index.db`), `POSTGRES_CONNECTION_STRING`
+- **VectorChord** (when `DB_TYPE=vectorchord`): `VECTORCHORD_RESIDUAL_QUANTIZATION` (default: true), `VECTORCHORD_LISTS` (default: 100), `VECTORCHORD_SPHERICAL_CENTROIDS` (default: true), `VECTORCHORD_BUILD_THREADS` (default: 4), `VECTORCHORD_PROBES` (default: 10)
 
 ## Database Structure
 

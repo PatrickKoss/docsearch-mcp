@@ -11,6 +11,7 @@ export default defineConfig({
     isolate: true,
     fileParallelism: false,
     restoreMocks: true,
+    exclude: ['dist/**', 'node_modules/**'],
     env: {
       NODE_ENV: 'test',
     },
