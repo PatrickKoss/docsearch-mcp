@@ -98,6 +98,9 @@
   },
   "pnpm": {
     "patchedDependencies": {},
+    "overrides": {
+      "flatted": ">=3.4.2"
+    },
     "ignoredBuiltDependencies": [
       "better-sqlite3",
       "cpu-features",
