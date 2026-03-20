@@ -3,7 +3,7 @@
 - [x] 1.1 Add `'vectorchord'` to the `DatabaseType` union in `src/shared/config.ts` and update `validateDatabaseType()` to accept it
 - [x] 1.2 Add VectorChord-specific config fields to `AppConfig` interface: `VECTORCHORD_RESIDUAL_QUANTIZATION` (boolean, default true), `VECTORCHORD_LISTS` (number, default 100), `VECTORCHORD_SPHERICAL_CENTROIDS` (boolean, default true), `VECTORCHORD_BUILD_THREADS` (number, default 4), `VECTORCHORD_PROBES` (number, default 10)
 - [x] 1.3 Add VectorChord config initialization in `initializeConfig()` reading from environment variables
-- [ ] 1.4 Update `.env.example` with VectorChord configuration options and comments (MANUAL: hook blocks .env file access)
+- [x] 1.4 Update `.env.example` with VectorChord configuration options and comments (MANUAL: hook blocks .env file access)
 
 ## 2. VectorChord Adapter Implementation
 
