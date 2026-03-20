@@ -52,7 +52,7 @@ importers:
         version: 7.2.2
       undici:
         specifier: ^7.22.0
-        version: 7.22.0
+        version: 7.24.4
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -2518,8 +2518,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@7.22.0:
-    resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
+  undici@7.24.4:
+    resolution: {integrity: sha512-BM/JzwwaRXxrLdElV2Uo6cTLEjhSb3WXboncJamZ15NgUURmvlXvxa6xkwIOILIjPNo9i8ku136ZvWV0Uly8+w==}
     engines: {node: '>=20.18.1'}
 
   unpipe@1.0.0:
@@ -5156,7 +5156,7 @@ snapshots:
       ssh-remote-port-forward: 1.0.4
       tar-fs: 3.1.2
       tmp: 0.2.5
-      undici: 7.22.0
+      undici: 7.24.4
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -5274,7 +5274,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@7.22.0: {}
+  undici@7.24.4: {}
 
   unpipe@1.0.0: {}
 
