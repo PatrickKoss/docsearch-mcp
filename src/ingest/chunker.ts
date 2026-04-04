@@ -123,6 +123,95 @@ export function chunkPdf(text: string): readonly Chunk[] {
   return chunkDoc(cleanedText);
 }
 
+export interface EpubChapterInput {
+  readonly title: string;
+  readonly text: string;
+}
+
+export function chunkEpub(chapters: readonly EpubChapterInput[]): readonly Chunk[] {
+  const chunks: Chunk[] = [];
+
+  for (const chapter of chapters) {
+    if (!chapter.text.trim()) {
+      continue;
+    }
+
+    if (chapter.text.length <= DOC_MAX_CHARS) {
+      chunks.push({
+        content: `${chapter.title}\n\n${chapter.text}`,
+        tokenCount: approxTokens(chapter.text),
+      });
+    } else {
+      // Split long chapters using chunkDoc, prefix first chunk with title
+      const subChunks = chunkDoc(chapter.text);
+      for (let i = 0; i < subChunks.length; i++) {
+        const sub = subChunks[i];
+        if (!sub) {
+          continue;
+        }
+        const content = i === 0 ? `${chapter.title}\n\n${sub.content}` : sub.content;
+        chunks.push({
+          content,
+          tokenCount: approxTokens(content),
+        });
+      }
+    }
+  }
+
+  return chunks;
+}
+
+export interface TranscriptSegmentInput {
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+}
+
+export function chunkTranscript(segments: readonly TranscriptSegmentInput[]): readonly Chunk[] {
+  if (segments.length === 0) {
+    return [];
+  }
+
+  const chunks: Chunk[] = [];
+  let currentText = '';
+  const firstSegment = segments[0];
+  let currentStart = firstSegment ? firstSegment.start : 0;
+  let currentEnd = firstSegment ? firstSegment.start : 0;
+
+  for (const segment of segments) {
+    const candidate = currentText ? `${currentText} ${segment.text}` : segment.text;
+
+    if (candidate.length > DOC_MAX_CHARS && currentText) {
+      chunks.push({
+        content: `[${formatTimestamp(currentStart)} - ${formatTimestamp(currentEnd)}]\n${currentText}`,
+        tokenCount: approxTokens(currentText),
+      });
+      currentText = segment.text;
+      currentStart = segment.start;
+      currentEnd = segment.end;
+    } else {
+      currentText = candidate;
+      currentEnd = segment.end;
+    }
+  }
+
+  if (currentText.trim()) {
+    chunks.push({
+      content: `[${formatTimestamp(currentStart)} - ${formatTimestamp(currentEnd)}]\n${currentText}`,
+      tokenCount: approxTokens(currentText),
+    });
+  }
+
+  return chunks;
+}
+
+function formatTimestamp(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 function approxTokens(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.round(words * 1.05 + 5);

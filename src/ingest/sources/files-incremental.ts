@@ -6,11 +6,46 @@ import fg from 'fast-glob';
 
 import { CONFIG } from '../../shared/config.js';
 import { IncrementalIndexer, type IncrementalIndexResult } from '../incremental-indexer.js';
+import { parseAudioVideo } from '../parsers/audio-video.js';
+import { parseEpub } from '../parsers/epub.js';
+import { parseDocx, parseXlsx, parsePptx } from '../parsers/office.js';
 
 import type { DatabaseAdapter } from '../adapters/index.js';
 
+const OFFICE_EXT = new Set(['.docx', '.xlsx', '.pptx']);
+const EPUB_EXT = new Set(['.epub']);
+const AUDIO_EXT = new Set(['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac']);
+const VIDEO_EXT = new Set(['.mp4', '.webm', '.mkv', '.avi', '.mov']);
+
 function isPdf(p: string) {
   return path.extname(p).toLowerCase() === '.pdf';
+}
+
+function isOffice(p: string) {
+  return OFFICE_EXT.has(path.extname(p).toLowerCase());
+}
+
+function isEpub(p: string) {
+  return EPUB_EXT.has(path.extname(p).toLowerCase());
+}
+
+function isMedia(p: string) {
+  const ext = path.extname(p).toLowerCase();
+  return AUDIO_EXT.has(ext) || VIDEO_EXT.has(ext);
+}
+
+function getLangForExt(p: string): string {
+  const ext = path.extname(p).toLowerCase();
+  if (isPdf(p)) {
+    return 'pdf';
+  }
+  if (AUDIO_EXT.has(ext)) {
+    return 'audio';
+  }
+  if (VIDEO_EXT.has(ext)) {
+    return 'video';
+  }
+  return ext.slice(1);
 }
 
 function guessRepo(absPath: string): string | null {
@@ -92,6 +127,43 @@ export async function ingestFilesIncremental(
             pages: info.total,
             info: info.info,
           });
+        } else if (isOffice(abs)) {
+          if (verbose) {
+            console.info(`Processing office document: ${abs}`);
+          }
+          const ext = path.extname(abs).toLowerCase();
+          let officeResult;
+          if (ext === '.docx') {
+            officeResult = await parseDocx(abs);
+          } else if (ext === '.xlsx') {
+            officeResult = await parseXlsx(abs);
+          } else {
+            officeResult = await parsePptx(abs);
+          }
+          content = officeResult.text;
+          if (!content.trim()) {
+            stats.filesSkipped++;
+            continue;
+          }
+          extraJson = JSON.stringify(officeResult.metadata);
+        } else if (isEpub(abs)) {
+          if (verbose) {
+            console.info(`Processing EPUB: ${abs}`);
+          }
+          const epubResult = await parseEpub(abs);
+          content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
+          if (!content.trim()) {
+            stats.filesSkipped++;
+            continue;
+          }
+          extraJson = JSON.stringify(epubResult.metadata);
+        } else if (isMedia(abs)) {
+          if (verbose) {
+            console.info(`Processing media file: ${abs}`);
+          }
+          const mediaResult = await parseAudioVideo(abs);
+          content = mediaResult.transcript || `Media: ${path.basename(abs)}`;
+          extraJson = JSON.stringify(mediaResult.metadata);
         } else {
           content = await fs.readFile(abs, 'utf8');
         }
@@ -99,14 +171,17 @@ export async function ingestFilesIncremental(
         const rel = path.relative(process.cwd(), abs);
         const uri = `file://${abs}`;
         const stat = await fs.stat(abs);
+        const ext = path.extname(abs).toLowerCase();
+        const titleExt = ['.pdf', '.docx', '.xlsx', '.pptx', '.epub'];
+        const title = titleExt.includes(ext) ? path.basename(abs, ext) : path.basename(abs);
 
         const result = await indexer.indexFileIncremental(abs, content, {
           source: 'file',
           uri,
           repo: guessRepo(abs),
           path: rel,
-          title: isPdf(abs) ? path.basename(abs, '.pdf') : path.basename(abs),
-          lang: isPdf(abs) ? 'pdf' : path.extname(abs).slice(1),
+          title,
+          lang: getLangForExt(abs),
           mtime: stat.mtimeMs,
           version: null,
           extraJson,
@@ -183,6 +258,32 @@ export async function ingestSingleFileIncremental(
         pages: info.total,
         info: info.info,
       });
+    } else if (isOffice(abs)) {
+      const ext = path.extname(abs).toLowerCase();
+      let officeResult;
+      if (ext === '.docx') {
+        officeResult = await parseDocx(abs);
+      } else if (ext === '.xlsx') {
+        officeResult = await parseXlsx(abs);
+      } else {
+        officeResult = await parsePptx(abs);
+      }
+      content = officeResult.text;
+      if (!content.trim()) {
+        return null;
+      }
+      extraJson = JSON.stringify(officeResult.metadata);
+    } else if (isEpub(abs)) {
+      const epubResult = await parseEpub(abs);
+      content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
+      if (!content.trim()) {
+        return null;
+      }
+      extraJson = JSON.stringify(epubResult.metadata);
+    } else if (isMedia(abs)) {
+      const mediaResult = await parseAudioVideo(abs);
+      content = mediaResult.transcript || `Media: ${path.basename(abs)}`;
+      extraJson = JSON.stringify(mediaResult.metadata);
     } else {
       content = await fs.readFile(abs, 'utf8');
     }
@@ -190,14 +291,17 @@ export async function ingestSingleFileIncremental(
     const rel = path.relative(process.cwd(), abs);
     const uri = `file://${abs}`;
     const stat = await fs.stat(abs);
+    const ext = path.extname(abs).toLowerCase();
+    const titleExt = ['.pdf', '.docx', '.xlsx', '.pptx', '.epub'];
+    const title = titleExt.includes(ext) ? path.basename(abs, ext) : path.basename(abs);
 
     return await indexer.indexFileIncremental(abs, content, {
       source: 'file',
       uri,
       repo: guessRepo(abs),
       path: rel,
-      title: isPdf(abs) ? path.basename(abs, '.pdf') : path.basename(abs),
-      lang: isPdf(abs) ? 'pdf' : path.extname(abs).slice(1),
+      title,
+      lang: getLangForExt(abs),
       mtime: stat.mtimeMs,
       version: null,
       extraJson,

@@ -9,15 +9,18 @@ A local-first document search and indexing system that provides hybrid semantic 
 ## ✨ Features
 
 - **🔍 Hybrid Search**: Combines full-text search (FTS) with vector similarity for optimal results
-- **📁 Multi-Source**: Index local files (code, docs, PDFs) and Confluence spaces
+- **📁 Multi-Source**: Index local files (code, docs, PDFs, office documents, ebooks, audio/video) and Confluence spaces
 - **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
+- **📝 Office Documents**: Extract and search text from DOCX, XLSX, and PPTX files
+- **📚 EPUB Support**: Chapter-aware parsing and indexing of ebook files
+- **🎵 Audio/Video**: Media metadata extraction with optional Whisper API transcription
 - **🖼️ Image Search**: AI-powered image description and search for diagrams, screenshots, and charts
 - **🗄️ Database Flexibility**: Support for SQLite (local-first), PostgreSQL (scalable), and VectorChord (high-performance vector search)
 - **🤖 MCP Integration**: Seamless integration with Claude Code and other MCP-compatible tools
 - **💻 CLI Tool**: Standalone command-line interface with multiple output formats
 - **⚡ Real-time Updates**: File watching with automatic re-indexing
-- **🎯 Smart Chunking**: Intelligent text chunking for code, documentation, and PDFs
-- **📊 Multiple Output Formats**: Text, JSON, and YAML output for search results
+- **🎯 Smart Chunking**: Intelligent text chunking for code, documentation, PDFs, ebooks, and audio transcripts
+- **📊 Multiple Output Formats**: Text, JSON, and YAML output with format-specific metadata
 - **🔒 Secure**: API keys and sensitive data stay on your machine
 
 ## 🚀 Installation & Usage
@@ -285,6 +288,10 @@ The system automatically detects and processes different file types:
 - **Code files**: `.ts`, `.js`, `.py`, `.go`, `.rs`, `.java`, `.cpp`, `.c`, `.rb`, `.php`, `.kt`, `.swift`
 - **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`
 - **PDFs**: `.pdf` files are automatically parsed with text extraction and metadata preservation
+- **Office Documents**: `.docx`, `.xlsx`, `.pptx` files with text extraction and format-specific metadata
+- **Ebooks**: `.epub` files with chapter-aware parsing and metadata extraction
+- **Audio**: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac` files with metadata extraction and optional transcription
+- **Video**: `.mp4`, `.webm`, `.mkv`, `.avi`, `.mov` files with metadata extraction and optional transcription
 - **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` files with optional AI-powered description generation
 
 PDF files are processed with:
@@ -293,6 +300,26 @@ PDF files are processed with:
 - Metadata preservation (page count, document info)
 - Smart text normalization and chunking
 - Error handling for corrupted or encrypted files
+
+Office documents are processed with:
+
+- **DOCX**: Text and paragraph extraction via `mammoth`, preserving document structure
+- **XLSX**: Cell text extraction from all sheets (up to 100 sheets, 10,000 rows each) with sheet-name prefixes
+- **PPTX**: Slide text extraction with slide number prefixes
+
+EPUB files are processed with:
+
+- Chapter-by-chapter HTML content extraction and text conversion
+- Chapter-aware chunking (chunks never span chapter boundaries)
+- Metadata extraction (title, author, language, chapter count)
+
+Audio/video files are processed with:
+
+- **Metadata Extraction**: Duration, bitrate, sample rate, codec, artist, album, title, genre via `music-metadata`
+- **Optional Transcription**: Speech-to-text via OpenAI Whisper API (or compatible endpoint), enabled with `ENABLE_AUDIO_TRANSCRIPTION=true`
+- **Timestamp Preservation**: Transcript chunks include time ranges for locating content in the original file
+- **File Size Limit**: Files over 25MB are indexed with metadata only (Whisper API limit)
+- **Configuration**: `WHISPER_API_KEY` (defaults to `OPENAI_API_KEY`), `WHISPER_BASE_URL`, `WHISPER_MODEL` (defaults to `whisper-1`)
 
 Image files support optional AI-powered description generation:
 

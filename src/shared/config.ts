@@ -16,6 +16,11 @@ interface AppConfig {
   readonly IMAGE_TO_TEXT_PROVIDER: string;
   readonly IMAGE_TO_TEXT_MODEL: string;
 
+  readonly ENABLE_AUDIO_TRANSCRIPTION: boolean;
+  readonly WHISPER_API_KEY: string;
+  readonly WHISPER_BASE_URL: string;
+  readonly WHISPER_MODEL: string;
+
   readonly CONFLUENCE_BASE_URL: string;
   readonly CONFLUENCE_EMAIL: string;
   readonly CONFLUENCE_API_TOKEN: string;
@@ -87,6 +92,11 @@ function initializeConfig(): AppConfig {
       ENABLE_IMAGE_TO_TEXT: process.env.ENABLE_IMAGE_TO_TEXT === 'true',
       IMAGE_TO_TEXT_PROVIDER: process.env.IMAGE_TO_TEXT_PROVIDER || 'openai',
       IMAGE_TO_TEXT_MODEL: process.env.IMAGE_TO_TEXT_MODEL || 'gpt-4o-mini',
+
+      ENABLE_AUDIO_TRANSCRIPTION: process.env.ENABLE_AUDIO_TRANSCRIPTION === 'true',
+      WHISPER_API_KEY: process.env.WHISPER_API_KEY || process.env.OPENAI_API_KEY || '',
+      WHISPER_BASE_URL: process.env.WHISPER_BASE_URL || process.env.OPENAI_BASE_URL || '',
+      WHISPER_MODEL: process.env.WHISPER_MODEL || 'whisper-1',
 
       CONFLUENCE_BASE_URL: process.env.CONFLUENCE_BASE_URL || '',
       CONFLUENCE_EMAIL: process.env.CONFLUENCE_EMAIL || '',

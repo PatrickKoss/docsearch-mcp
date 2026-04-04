@@ -107,7 +107,7 @@ make help                    # Show all available make commands
 
 ### Data Flow
 
-1. **Ingestion**: Files (including PDFs)/Confluence → Content extraction → Chunking → Embedding generation → SQLite storage
+1. **Ingestion**: Files (PDFs, office docs, EPUBs, audio/video, code, images)/Confluence → Content extraction → Chunking → Embedding generation → SQLite storage
 2. **Search**: Query → Hybrid search (keyword + vector) → Ranked results → MCP response
 3. **Retrieval**: Resource URIs (`docchunk://{id}`) → Full chunk content with metadata
 
@@ -130,7 +130,10 @@ make help                    # Show all available make commands
 
 - `src/ingest/indexer.ts`: Core indexing operations (upsert documents, embed chunks)
 - `src/ingest/sources/`: File system (including PDF) and Confluence content ingestion
-- `src/ingest/chunker.ts`: Text chunking strategies for code, documentation, and PDFs
+- `src/ingest/chunker.ts`: Text chunking strategies for code, documentation, PDFs, EPUBs, and audio transcripts
+- `src/ingest/parsers/office.ts`: DOCX, XLSX, PPTX text extraction (mammoth, xlsx)
+- `src/ingest/parsers/epub.ts`: EPUB chapter extraction and metadata
+- `src/ingest/parsers/audio-video.ts`: Media metadata extraction (music-metadata) and Whisper API transcription
 - `src/ingest/embeddings.ts`: Embedding generation (OpenAI/TEI support)
 - `src/shared/config.ts`: Environment-based configuration
 
@@ -139,6 +142,7 @@ make help                    # Show all available make commands
 Environment variables in `.env`:
 
 - **Embeddings**: `EMBEDDINGS_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_EMBED_MODEL`
+- **Audio Transcription**: `ENABLE_AUDIO_TRANSCRIPTION` (default: false), `WHISPER_API_KEY` (defaults to `OPENAI_API_KEY`), `WHISPER_BASE_URL`, `WHISPER_MODEL` (default: `whisper-1`)
 - **Confluence**: `CONFLUENCE_BASE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN`, `CONFLUENCE_SPACES`
 - **Files**: `FILE_ROOTS`, `FILE_INCLUDE_GLOBS`, `FILE_EXCLUDE_GLOBS`
 - **Database**: `DB_TYPE` (`sqlite`, `postgresql`, or `vectorchord`), `DB_PATH` (defaults to `./data/index.db`), `POSTGRES_CONNECTION_STRING`
@@ -146,7 +150,7 @@ Environment variables in `.env`:
 
 ## Database Structure
 
-- `documents`: Source metadata (URI, hash, mtime, repo, path, title, language, extra_json for PDF metadata)
+- `documents`: Source metadata (URI, hash, mtime, repo, path, title, language, extra_json for PDF/office/epub/audio metadata)
 - `chunks`: Text chunks with line numbers and token counts
 - `vec_chunks`: Vector embeddings linked to chunks
 - `chunks_fts`: Full-text search index
@@ -177,6 +181,30 @@ Environment variables in `.env`:
 - **File Types**: PDFs are treated as document files and use document-style chunking
 - **Integration**: Seamlessly integrated into existing file ingestion pipeline
 
+### Office Document Support
+
+- **DOCX**: Uses `mammoth` for text extraction preserving paragraph structure
+- **XLSX**: Uses `xlsx` (SheetJS) for cell text extraction, capped at 100 sheets / 10,000 rows per sheet
+- **PPTX**: Uses `xlsx` for slide text extraction with slide number prefixes
+- **Dynamic Loading**: Libraries loaded only when processing their respective file types
+- **Metadata**: Format, sheet/slide count stored in `extra_json`
+
+### EPUB Support
+
+- **Parser**: Uses `epub2` for chapter-by-chapter content extraction
+- **HTML Stripping**: Chapter HTML converted to plain text (handles tags, entities, line breaks)
+- **Chapter-Aware Chunking**: `chunkEpub()` respects chapter boundaries; chunks never span chapters
+- **Metadata**: Title, author, language, chapter count stored in `extra_json`
+
+### Audio/Video Support
+
+- **Metadata**: Uses `music-metadata` to extract duration, bitrate, codec, artist, album, genre, etc.
+- **Transcription**: Optional Whisper API integration (`ENABLE_AUDIO_TRANSCRIPTION=true`) for speech-to-text
+- **Timestamp Chunking**: `chunkTranscript()` creates timestamped chunks from Whisper segments
+- **File Size Limit**: Files over 25MB skip transcription (Whisper API limit)
+- **Audio formats**: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`
+- **Video formats**: `.mp4`, `.webm`, `.mkv`, `.avi`, `.mov`
+
 ## Quality Assurance
 
 The project includes comprehensive tooling for code quality:
@@ -189,8 +217,8 @@ The project includes comprehensive tooling for code quality:
 
 ### Testing Strategy
 
-- Unit tests for core functionality (indexing, search, chunking, PDF processing)
-- Integration tests for database operations and MCP server
-- Mock implementations for external dependencies (OpenAI, Confluence, PDF parsing)
+- Unit tests for core functionality (indexing, search, chunking, PDF processing, office/epub/audio parsing)
+- Integration tests for database operations, MCP server, and multi-format ingestion
+- Mock implementations for external dependencies (OpenAI, Confluence, PDF parsing, mammoth, xlsx, epub2, music-metadata)
 - Test coverage reporting and UI for development
-- Comprehensive PDF ingestion tests with mocked PDF parsing
+- Comprehensive ingestion tests with mocked parsing for all supported formats

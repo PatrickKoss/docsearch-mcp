@@ -215,6 +215,11 @@ export class IncrementalIndexer extends Indexer {
       '.swift',
     ]);
     const DOC_EXT = new Set(['.md', '.mdx', '.txt', '.rst', '.adoc', '.yaml', '.yml', '.json']);
+    const OFFICE_EXT = new Set(['.docx', '.xlsx', '.pptx']);
+
+    if (OFFICE_EXT.has(ext)) {
+      return [...chunkDoc(content)];
+    }
 
     if (CODE_EXT.has(ext) || !DOC_EXT.has(ext)) {
       return [...chunkCode(content)];

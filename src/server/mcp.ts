@@ -203,7 +203,44 @@ server.registerTool(
         }
       }
 
-      const description = `${r.source}${repoInfo}${pathInfo}${sourceUrl}`;
+      // Add format-specific metadata to description
+      let formatInfo = '';
+      if (r.extra_json) {
+        try {
+          const extra = JSON.parse(r.extra_json);
+          const metaParts: string[] = [];
+          if (extra.duration != null) {
+            const h = Math.floor(extra.duration / 3600);
+            const m = Math.floor((extra.duration % 3600) / 60);
+            const s = Math.floor(extra.duration % 60);
+            metaParts.push(
+              `duration: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
+            );
+          }
+          if (extra.artist) {
+            metaParts.push(`artist: ${extra.artist}`);
+          }
+          if (extra.chapterCount != null) {
+            metaParts.push(`${extra.chapterCount} chapters`);
+          }
+          if (extra.sheetCount != null) {
+            metaParts.push(`${extra.sheetCount} sheets`);
+          }
+          if (extra.slideCount != null) {
+            metaParts.push(`${extra.slideCount} slides`);
+          }
+          if (extra.pages != null) {
+            metaParts.push(`${extra.pages} pages`);
+          }
+          if (metaParts.length > 0) {
+            formatInfo = ` • ${metaParts.join(', ')}`;
+          }
+        } catch {
+          // Ignore
+        }
+      }
+
+      const description = `${r.source}${repoInfo}${pathInfo}${sourceUrl}${formatInfo}`;
 
       content.push({
         type: 'resource_link',
