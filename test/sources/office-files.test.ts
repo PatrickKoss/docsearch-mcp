@@ -21,50 +21,84 @@ vi.mock('mammoth', () => ({
   }),
 }));
 
-// Mock xlsx
-vi.mock('xlsx', () => ({
-  read: vi.fn().mockImplementation((_buffer: Buffer) => {
-    const text = _buffer.toString();
-    if (text.includes('empty-xlsx')) {
-      return { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
+// Mock exceljs
+vi.mock('exceljs', () => {
+  class MockWorksheet {
+    name: string;
+    _rows: unknown[][];
+    rowCount: number;
+
+    constructor(name: string, rows: unknown[][]) {
+      this.name = name;
+      this._rows = rows;
+      this.rowCount = rows.length;
     }
-    if (text.includes('pptx-content')) {
-      return {
-        SheetNames: ['Title Slide', 'Content'],
-        Sheets: {
-          'Title Slide': { _mockData: [['Quarterly Review'], ['Q4 2024']] },
-          Content: {
-            _mockData: [['Revenue grew 15%'], ['Customer satisfaction at 92%']],
+
+    eachRow(callback: (row: { values: unknown[] }, rowNumber: number) => void) {
+      this._rows.forEach((row, index) => {
+        callback({ values: [undefined, ...row] }, index + 1);
+      });
+    }
+  }
+
+  class MockWorkbook {
+    worksheets: MockWorksheet[] = [];
+
+    xlsx = {
+      readFile: vi.fn().mockImplementation((filePath: string) => {
+        if (filePath.includes('empty')) {
+          this.worksheets = [new MockWorksheet('Sheet1', [])];
+        } else {
+          this.worksheets = [
+            new MockWorksheet('Revenue', [
+              ['Month', 'Amount'],
+              ['January', 50000],
+              ['February', 55000],
+            ]),
+            new MockWorksheet('Expenses', [
+              ['Category', 'Amount'],
+              ['Salaries', 30000],
+              ['Infrastructure', 10000],
+            ]),
+          ];
+        }
+        return Promise.resolve();
+      }),
+    };
+  }
+
+  return {
+    Workbook: MockWorkbook,
+  };
+});
+
+// Mock jszip
+vi.mock('jszip', () => {
+  const mockSlide1Xml = `<?xml version="1.0"?>
+<p:sld><p:cSld><p:spTree>
+  <p:sp><p:txBody><a:p><a:r><a:t>Quarterly Review</a:t></a:r></a:p><a:p><a:r><a:t>Q4 2024</a:t></a:r></a:p></p:txBody></p:sp>
+</p:spTree></p:cSld></p:sld>`;
+
+  const mockSlide2Xml = `<?xml version="1.0"?>
+<p:sld><p:cSld><p:spTree>
+  <p:sp><p:txBody><a:p><a:r><a:t>Revenue grew 15%</a:t></a:r></a:p><a:p><a:r><a:t>Customer satisfaction at 92%</a:t></a:r></a:p></p:txBody></p:sp>
+</p:spTree></p:cSld></p:sld>`;
+
+  return {
+    default: {
+      loadAsync: vi.fn().mockImplementation(async () => ({
+        files: {
+          'ppt/slides/slide1.xml': {
+            async: () => Promise.resolve(mockSlide1Xml),
+          },
+          'ppt/slides/slide2.xml': {
+            async: () => Promise.resolve(mockSlide2Xml),
           },
         },
-      };
-    }
-    return {
-      SheetNames: ['Revenue', 'Expenses'],
-      Sheets: {
-        Revenue: {
-          _mockData: [
-            ['Month', 'Amount'],
-            ['January', 50000],
-            ['February', 55000],
-          ],
-        },
-        Expenses: {
-          _mockData: [
-            ['Category', 'Amount'],
-            ['Salaries', 30000],
-            ['Infrastructure', 10000],
-          ],
-        },
-      },
-    };
-  }),
-  utils: {
-    sheet_to_json: vi.fn().mockImplementation((sheet: any) => {
-      return sheet._mockData || [];
-    }),
-  },
-}));
+      })),
+    },
+  };
+});
 
 // Mock epub2
 vi.mock('epub2', () => {
