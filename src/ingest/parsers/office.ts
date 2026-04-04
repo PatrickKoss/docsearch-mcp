@@ -23,82 +23,110 @@ export async function parseDocx(filePath: string): Promise<OfficeParseResult> {
 }
 
 export async function parseXlsx(filePath: string): Promise<OfficeParseResult> {
-  const XLSX = await import('xlsx');
-  const buffer = await fs.readFile(filePath);
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
 
-  const sheetNames = workbook.SheetNames.slice(0, MAX_SHEETS);
-  const truncatedSheets = workbook.SheetNames.length > MAX_SHEETS;
+  const worksheets = workbook.worksheets.slice(0, MAX_SHEETS);
+  const truncatedSheets = workbook.worksheets.length > MAX_SHEETS;
 
   if (truncatedSheets) {
     console.warn(
-      `XLSX file ${filePath} has ${workbook.SheetNames.length} sheets, truncating to ${MAX_SHEETS}`,
+      `XLSX file ${filePath} has ${workbook.worksheets.length} sheets, truncating to ${MAX_SHEETS}`,
     );
   }
 
   const parts: string[] = [];
   let totalRows = 0;
 
-  for (const name of sheetNames) {
-    const sheet = workbook.Sheets[name];
-    if (!sheet) {
-      continue;
-    }
+  for (const sheet of worksheets) {
+    const rows: string[] = [];
+    let rowCount = 0;
 
-    const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
-    const cappedRows = rows.slice(0, MAX_ROWS_PER_SHEET);
+    sheet.eachRow((row, _rowNumber) => {
+      if (rowCount >= MAX_ROWS_PER_SHEET) {
+        return;
+      }
+      const cells = row.values as unknown[];
+      // row.values is 1-indexed (index 0 is undefined), so skip first element
+      const cellTexts = cells
+        .slice(1)
+        .map((cell) => (cell != null ? String(cell) : ''))
+        .join('\t');
+      if (cellTexts.trim()) {
+        rows.push(cellTexts);
+      }
+      rowCount++;
+    });
 
-    if (rows.length > MAX_ROWS_PER_SHEET) {
+    if (sheet.rowCount > MAX_ROWS_PER_SHEET) {
       console.warn(
-        `Sheet "${name}" in ${filePath} has ${rows.length} rows, truncating to ${MAX_ROWS_PER_SHEET}`,
+        `Sheet "${sheet.name}" in ${filePath} has ${sheet.rowCount} rows, truncating to ${MAX_ROWS_PER_SHEET}`,
       );
     }
 
-    const sheetText = cappedRows
-      .map((row) => (row as unknown[]).map((cell) => (cell != null ? String(cell) : '')).join('\t'))
-      .filter((line) => line.trim())
-      .join('\n');
-
-    if (sheetText.trim()) {
-      parts.push(`Sheet: ${name}\n${sheetText}`);
+    if (rows.length > 0) {
+      parts.push(`Sheet: ${sheet.name}\n${rows.join('\n')}`);
     }
 
-    totalRows += cappedRows.length;
+    totalRows += rowCount;
   }
 
   return {
     text: parts.join('\n\n'),
     metadata: {
       format: 'xlsx',
-      sheetCount: sheetNames.length,
+      sheetCount: worksheets.length,
       totalRows,
     },
   };
 }
 
 export async function parsePptx(filePath: string): Promise<OfficeParseResult> {
-  const XLSX = await import('xlsx');
+  const JSZip = (await import('jszip')).default;
   const buffer = await fs.readFile(filePath);
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const zip = await JSZip.loadAsync(buffer);
 
   const parts: string[] = [];
   let slideNumber = 0;
 
-  for (const name of workbook.SheetNames) {
+  // PPTX slides are stored as ppt/slides/slide1.xml, slide2.xml, etc.
+  const slideFiles = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort((a, b) => {
+      const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0', 10);
+      const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0', 10);
+      return numA - numB;
+    });
+
+  for (const slideFile of slideFiles) {
     slideNumber++;
-    const sheet = workbook.Sheets[name];
-    if (!sheet) {
+    const file = zip.files[slideFile];
+    if (!file) {
       continue;
     }
+    const xml = await file.async('string');
 
-    const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
-    const slideText = rows
-      .map((row) => (row as unknown[]).map((cell) => (cell != null ? String(cell) : '')).join(' '))
-      .filter((line) => line.trim())
-      .join('\n');
+    // Extract text from XML by finding all <a:t> elements (PowerPoint text runs)
+    const textParts: string[] = [];
+    const regex = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+    let match;
+    while ((match = regex.exec(xml)) !== null) {
+      const text = (match[1] ?? '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .trim();
+      if (text) {
+        textParts.push(text);
+      }
+    }
 
-    if (slideText.trim()) {
-      parts.push(`Slide ${slideNumber}: ${name}\n${slideText}`);
+    const slideText = textParts.join(' ').trim();
+    if (slideText) {
+      parts.push(`Slide ${slideNumber}\n${slideText}`);
     }
   }
 

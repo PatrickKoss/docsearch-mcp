@@ -20,23 +20,46 @@ vi.mock('mammoth', () => ({
   }),
 }));
 
-// Mock xlsx
-vi.mock('xlsx', () => ({
-  read: vi.fn().mockImplementation((_buffer: Buffer) => ({
-    SheetNames: ['Sheet1'],
-    Sheets: {
-      Sheet1: {
-        _mockData: [
-          ['Data', 'Value'],
-          ['Row1', 100],
-        ],
-      },
-    },
-  })),
-  utils: {
-    sheet_to_json: vi.fn().mockImplementation((sheet: any) => sheet._mockData || []),
-  },
-}));
+// Mock exceljs
+vi.mock('exceljs', () => {
+  class MockWorksheet {
+    name: string;
+    _rows: unknown[][];
+    rowCount: number;
+
+    constructor(name: string, rows: unknown[][]) {
+      this.name = name;
+      this._rows = rows;
+      this.rowCount = rows.length;
+    }
+
+    eachRow(callback: (row: { values: unknown[] }, rowNumber: number) => void) {
+      this._rows.forEach((row, index) => {
+        callback({ values: [undefined, ...row] }, index + 1);
+      });
+    }
+  }
+
+  class MockWorkbook {
+    worksheets: MockWorksheet[] = [];
+
+    xlsx = {
+      readFile: vi.fn().mockImplementation(() => {
+        this.worksheets = [
+          new MockWorksheet('Sheet1', [
+            ['Data', 'Value'],
+            ['Row1', 100],
+          ]),
+        ];
+        return Promise.resolve();
+      }),
+    };
+  }
+
+  return {
+    Workbook: MockWorkbook,
+  };
+});
 
 // Mock epub2
 vi.mock('epub2', () => {

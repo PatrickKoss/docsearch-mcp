@@ -20,62 +20,109 @@ vi.mock('mammoth', () => ({
   }),
 }));
 
-// Mock xlsx
-vi.mock('xlsx', () => {
-  const mockSheet1Data = [
+// Mock exceljs
+vi.mock('exceljs', () => {
+  const mockSheet1Rows = [
     ['Name', 'Age', 'City'],
     ['Alice', 30, 'New York'],
     ['Bob', 25, 'London'],
   ];
 
-  const mockSheet2Data = [
+  const mockSheet2Rows = [
     ['Product', 'Price'],
     ['Widget', 9.99],
   ];
 
+  class MockWorksheet {
+    name: string;
+    _rows: unknown[][];
+    rowCount: number;
+
+    constructor(name: string, rows: unknown[][]) {
+      this.name = name;
+      this._rows = rows;
+      this.rowCount = rows.length;
+    }
+
+    eachRow(callback: (row: { values: unknown[] }, rowNumber: number) => void) {
+      this._rows.forEach((row, index) => {
+        // ExcelJS row.values is 1-indexed: [undefined, cell1, cell2, ...]
+        callback({ values: [undefined, ...row] }, index + 1);
+      });
+    }
+  }
+
+  class MockWorkbook {
+    worksheets: MockWorksheet[] = [];
+
+    xlsx = {
+      readFile: vi.fn().mockImplementation((filePath: string) => {
+        if (filePath.includes('empty')) {
+          this.worksheets = [new MockWorksheet('Sheet1', [])];
+        } else if (filePath.includes('multi')) {
+          this.worksheets = [
+            new MockWorksheet('Data', mockSheet1Rows),
+            new MockWorksheet('Summary', mockSheet2Rows),
+          ];
+        } else {
+          this.worksheets = [new MockWorksheet('Sheet1', mockSheet1Rows)];
+        }
+        return Promise.resolve();
+      }),
+    };
+  }
+
   return {
-    read: vi.fn().mockImplementation((_buffer: Buffer, _opts: unknown) => {
-      const text = _buffer.toString();
-      if (text.includes('empty-xlsx')) {
+    Workbook: MockWorkbook,
+  };
+});
+
+// Mock jszip
+vi.mock('jszip', () => {
+  const mockSlide1Xml = `<?xml version="1.0"?>
+<p:sld>
+  <p:cSld>
+    <p:spTree>
+      <p:sp><p:txBody><a:p><a:r><a:t>Welcome to the Presentation</a:t></a:r></a:p><a:p><a:r><a:t>Subtitle here</a:t></a:r></a:p></p:txBody></p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>`;
+
+  const mockSlide2Xml = `<?xml version="1.0"?>
+<p:sld>
+  <p:cSld>
+    <p:spTree>
+      <p:sp><p:txBody><a:p><a:r><a:t>Key Points</a:t></a:r></a:p><a:p><a:r><a:t>Point 1: Testing</a:t></a:r></a:p><a:p><a:r><a:t>Point 2: Quality</a:t></a:r></a:p></p:txBody></p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>`;
+
+  const emptySlideXml = `<?xml version="1.0"?>
+<p:sld><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`;
+
+  return {
+    default: {
+      loadAsync: vi.fn().mockImplementation(async (buffer: Buffer) => {
+        const text = buffer.toString();
+        if (text.includes('pptx-empty')) {
+          return {
+            files: {
+              'ppt/slides/slide1.xml': {
+                async: () => Promise.resolve(emptySlideXml),
+              },
+            },
+          };
+        }
         return {
-          SheetNames: ['Sheet1'],
-          Sheets: { Sheet1: {} },
-        };
-      }
-      if (text.includes('multi-sheet')) {
-        return {
-          SheetNames: ['Data', 'Summary'],
-          Sheets: {
-            Data: { _mockData: mockSheet1Data },
-            Summary: { _mockData: mockSheet2Data },
+          files: {
+            'ppt/slides/slide1.xml': {
+              async: () => Promise.resolve(mockSlide1Xml),
+            },
+            'ppt/slides/slide2.xml': {
+              async: () => Promise.resolve(mockSlide2Xml),
+            },
           },
         };
-      }
-      if (text.includes('pptx-content')) {
-        return {
-          SheetNames: ['Slide 1', 'Slide 2'],
-          Sheets: {
-            'Slide 1': { _mockData: [['Welcome to the Presentation'], ['Subtitle here']] },
-            'Slide 2': { _mockData: [['Key Points'], ['Point 1: Testing'], ['Point 2: Quality']] },
-          },
-        };
-      }
-      if (text.includes('pptx-empty')) {
-        return {
-          SheetNames: ['Slide 1'],
-          Sheets: { 'Slide 1': {} },
-        };
-      }
-      return {
-        SheetNames: ['Sheet1'],
-        Sheets: {
-          Sheet1: { _mockData: mockSheet1Data },
-        },
-      };
-    }),
-    utils: {
-      sheet_to_json: vi.fn().mockImplementation((sheet: any, _opts: unknown) => {
-        return sheet._mockData || [];
       }),
     },
   };

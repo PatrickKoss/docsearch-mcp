@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Pre-commit Verification
+
+Always run `make lint` before considering changes complete. The repository has a husky pre-commit hook that runs `pnpm format:check`, `pnpm lint`, and `pnpm typecheck:src`. All three must pass before committing.
+
 ## Project Overview
 
 This is a local-first document search and indexing system with both a CLI tool and MCP server that provides hybrid semantic+keyword search across local files (including PDFs) and Confluence pages. The system chunks documents, creates embeddings, stores them in SQLite with vector search capabilities, and exposes search functionality through both a command-line interface and the Model Context Protocol.
