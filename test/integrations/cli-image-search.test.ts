@@ -391,7 +391,7 @@ async function runCLI(
   args: string[],
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const cli = spawn('node', ['dist/src/cli/main.js', ...args], {
+    const cli = spawn('npx', ['tsx', 'src/cli/main.ts', ...args], {
       stdio: 'pipe',
       env: {
         ...process.env,
