@@ -79,6 +79,7 @@ jest.config.*
 vitest.config.*
 tsconfig*.json
 !tsconfig.json
+!tsconfig.src.json
 
 # Temporary files
 tmp/
