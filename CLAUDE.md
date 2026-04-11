@@ -137,6 +137,10 @@ make help                    # Show all available make commands
 - `src/ingest/indexer.ts`: Core indexing operations (upsert documents, embed chunks)
 - `src/ingest/sources/`: File system (including PDF) and Confluence content ingestion
 - `src/ingest/chunker.ts`: Text chunking strategies for code, documentation, PDFs, EPUBs, and audio transcripts
+- `src/ingest/parsers/types.ts`: `DocumentParser` interface for strategy pattern
+- `src/ingest/parsers/factory.ts`: Parser factory selecting builtin or Docling based on config
+- `src/ingest/parsers/builtin.ts`: Built-in parser wrapping pdf-parse, mammoth, xlsx, jszip, epub2
+- `src/ingest/parsers/docling.ts`: Docling parser using docling-serve REST API for ML-powered document conversion
 - `src/ingest/parsers/office.ts`: DOCX, XLSX, PPTX text extraction (mammoth, xlsx)
 - `src/ingest/parsers/epub.ts`: EPUB chapter extraction and metadata
 - `src/ingest/parsers/audio-video.ts`: Media metadata extraction (music-metadata) and Whisper API transcription
@@ -154,6 +158,7 @@ Environment variables in `.env`:
 - **Database**: `DB_TYPE` (`sqlite`, `postgresql`, or `vectorchord`), `DB_PATH` (defaults to `./data/index.db`), `POSTGRES_CONNECTION_STRING`
 - **VectorChord** (when `DB_TYPE=vectorchord`): `VECTORCHORD_RESIDUAL_QUANTIZATION` (default: true), `VECTORCHORD_LISTS` (default: 100), `VECTORCHORD_SPHERICAL_CENTROIDS` (default: true), `VECTORCHORD_BUILD_THREADS` (default: 4), `VECTORCHORD_PROBES` (default: 10)
 - **OnlyOffice** (for legacy DOC/XLS/PPT): `ONLYOFFICE_URL` (base URL of Document Server), `ONLYOFFICE_JWT_SECRET` (optional JWT secret), `ONLYOFFICE_TIMEOUT` (default: 30000ms)
+- **Document Parser**: `DOCUMENT_PARSER` (`builtin` or `docling`, default: `builtin`), `DOCLING_URL` (docling-serve endpoint, required when `DOCUMENT_PARSER=docling`)
 
 ## Database Structure
 
@@ -212,6 +217,15 @@ Environment variables in `.env`:
 - **File Size Limit**: Files over 25MB skip transcription (Whisper API limit)
 - **Audio formats**: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`
 - **Video formats**: `.mp4`, `.webm`, `.mkv`, `.avi`, `.mov`
+
+### Docling Integration (Optional)
+
+- **Strategy Pattern**: `DOCUMENT_PARSER` env var selects between `builtin` (default) and `docling` parsers
+- **Docling-serve**: ML-powered document conversion via REST API, run as Docker container: `docker run -p 5001:5001 quay.io/docling-project/docling-serve`
+- **Capabilities**: OCR for scanned PDFs, layout analysis, table structure extraction, formula recognition
+- **Supported formats**: PDF, DOCX, PPTX, XLSX, HTML, images (PNG, JPG, TIFF), EPUB
+- **Fallback**: Audio, video, and code files always use built-in parsers regardless of `DOCUMENT_PARSER` setting
+- **Output**: Docling returns Markdown which is chunked via `chunkDoc()`
 
 ## Quality Assurance
 

@@ -11,8 +11,7 @@ import { getImageToTextProvider } from '../image-to-text.js';
 import { Indexer } from '../indexer.js';
 import { parseAudioVideo } from '../parsers/audio-video.js';
 import { parseEpub } from '../parsers/epub.js';
-import { parseDocx, parseXlsx, parsePptx } from '../parsers/office.js';
-import { convertLegacyOffice, getLegacyOutputExt } from '../parsers/onlyoffice.js';
+import { getDocumentParser } from '../parsers/factory.js';
 
 import type { DatabaseAdapter } from '../adapters/index.js';
 import type { TranscriptSegment } from '../parsers/audio-video.js';
@@ -113,6 +112,7 @@ function isMedia(p: string) {
 export async function ingestFiles(adapter: DatabaseAdapter) {
   const indexer = new Indexer(adapter);
   const imageToTextProvider = getImageToTextProvider();
+  const documentParser = getDocumentParser();
 
   for (const root of CONFIG.FILE_ROOTS) {
     const files = await fg([...CONFIG.FILE_INCLUDE_GLOBS], {
@@ -133,28 +133,9 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
         let extraJson: string | null = null;
         let epubChapters: EpubChapter[] | null = null;
         let mediaSegments: TranscriptSegment[] | null = null;
+        let useDocChunking = false;
 
-        if (isPdf(abs)) {
-          console.info(`Processing PDF: ${abs}`);
-          const buffer = await fs.readFile(abs);
-          const { PDFParse } = await import('pdf-parse');
-          const parser = new PDFParse({ data: buffer });
-          const result = await parser.getText();
-          const info = await parser.getInfo();
-          content = result.text;
-
-          if (!content.trim()) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.warn(`PDF appears to be empty or unreadable: ${abs}`);
-            }
-            continue;
-          }
-
-          extraJson = JSON.stringify({
-            pages: info.total,
-            info: info.info,
-          });
-        } else if (isImage(abs)) {
+        if (isImage(abs)) {
           console.info(`Processing image: ${abs}`);
 
           // Get image description if provider is available
@@ -180,82 +161,38 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
             fileSize: stat.size,
             description: imageDescription,
           });
-        } else if (isOffice(abs)) {
-          console.info(`Processing office document: ${abs}`);
-          const ext = path.extname(abs).toLowerCase();
-          let result;
-          if (ext === '.docx') {
-            result = await parseDocx(abs);
-          } else if (ext === '.xlsx') {
-            result = await parseXlsx(abs);
-          } else {
-            result = await parsePptx(abs);
-          }
-          content = result.text;
-          if (!content.trim()) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.warn(`Office document appears to be empty: ${abs}`);
-            }
-            continue;
-          }
-          extraJson = JSON.stringify(result.metadata);
-        } else if (isLegacyOfficeExt(abs)) {
-          if (!CONFIG.ONLYOFFICE_URL) {
-            console.warn(`Skipping legacy Office file (ONLYOFFICE_URL not configured): ${abs}`);
-            continue;
-          }
-          console.info(`Converting legacy office document: ${abs}`);
-          let convertedPath: string | undefined;
-          try {
-            convertedPath = await convertLegacyOffice(abs);
-            const outputExt = getLegacyOutputExt(abs) ?? '.docx';
-            let result;
-            if (outputExt === '.docx') {
-              result = await parseDocx(convertedPath);
-            } else if (outputExt === '.xlsx') {
-              result = await parseXlsx(convertedPath);
-            } else {
-              result = await parsePptx(convertedPath);
-            }
-            content = result.text;
-            if (!content.trim()) {
-              if (process.env.NODE_ENV !== 'test') {
-                console.warn(`Converted office document appears to be empty: ${abs}`);
-              }
-              continue;
-            }
-            extraJson = JSON.stringify({
-              ...result.metadata,
-              convertedFrom: path.extname(abs).toLowerCase().slice(1),
-            });
-          } catch (convErr) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.error(`Failed to convert legacy office file: ${abs}`, convErr);
-            }
-            continue;
-          } finally {
-            if (convertedPath) {
-              await fs.unlink(convertedPath).catch(() => {});
-            }
-          }
-        } else if (isEpub(abs)) {
-          console.info(`Processing EPUB: ${abs}`);
-          const result = await parseEpub(abs);
-          epubChapters = result.chapters;
-          content = result.chapters.map((ch) => ch.text).join('\n\n');
-          if (!content.trim()) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.warn(`EPUB appears to have no content: ${abs}`);
-            }
-            continue;
-          }
-          extraJson = JSON.stringify(result.metadata);
         } else if (isMedia(abs)) {
           console.info(`Processing media file: ${abs}`);
           const result = await parseAudioVideo(abs);
           content = result.transcript || `Media: ${path.basename(abs)}`;
           mediaSegments = result.segments || null;
           extraJson = JSON.stringify(result.metadata);
+        } else if (isPdf(abs) || isOffice(abs) || isLegacyOfficeExt(abs) || isEpub(abs)) {
+          const ext = path.extname(abs).toLowerCase();
+          console.info(`Processing document: ${abs}`);
+
+          // For EPUB with builtin parser, preserve chapter structure for chapter-aware chunking
+          if (isEpub(abs) && CONFIG.DOCUMENT_PARSER === 'builtin') {
+            const result = await parseEpub(abs);
+            epubChapters = result.chapters;
+            content = result.chapters.map((ch) => ch.text).join('\n\n');
+            extraJson = JSON.stringify(result.metadata);
+          } else {
+            const buffer = await fs.readFile(abs);
+            const result = await documentParser.parse(abs, buffer, ext);
+            content = result.text;
+            extraJson = JSON.stringify(result.metadata);
+            if (result.contentType === 'markdown') {
+              useDocChunking = true;
+            }
+          }
+
+          if (!content.trim()) {
+            if (process.env.NODE_ENV !== 'test') {
+              console.warn(`Document appears to be empty: ${abs}`);
+            }
+            continue;
+          }
         } else {
           content = await fs.readFile(abs, 'utf8');
         }
@@ -282,7 +219,10 @@ export async function ingestFiles(adapter: DatabaseAdapter) {
 
         if (!hasChunks) {
           let chunks;
-          if (isPdf(abs)) {
+          if (useDocChunking) {
+            // Docling markdown output uses doc chunking
+            chunks = chunkDoc(content);
+          } else if (isPdf(abs)) {
             chunks = chunkPdf(content);
           } else if (isImage(abs)) {
             chunks = [

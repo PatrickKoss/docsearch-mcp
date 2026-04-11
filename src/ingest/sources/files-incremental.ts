@@ -8,8 +8,7 @@ import { CONFIG } from '../../shared/config.js';
 import { IncrementalIndexer, type IncrementalIndexResult } from '../incremental-indexer.js';
 import { parseAudioVideo } from '../parsers/audio-video.js';
 import { parseEpub } from '../parsers/epub.js';
-import { parseDocx, parseXlsx, parsePptx } from '../parsers/office.js';
-import { convertLegacyOffice, getLegacyOutputExt } from '../parsers/onlyoffice.js';
+import { getDocumentParser } from '../parsers/factory.js';
 
 import type { DatabaseAdapter } from '../adapters/index.js';
 
@@ -84,6 +83,7 @@ export async function ingestFilesIncremental(
   verbose: boolean = false,
 ): Promise<IncrementalIngestStats> {
   const indexer = new IncrementalIndexer(adapter);
+  const documentParser = getDocumentParser();
   const stats: IncrementalIngestStats = {
     filesProcessed: 0,
     filesSkipped: 0,
@@ -112,100 +112,28 @@ export async function ingestFilesIncremental(
         let content: string;
         let extraJson: string | null = null;
 
-        if (isPdf(abs)) {
-          if (verbose) {
-            console.info(`Processing PDF: ${abs}`);
-          }
-          const buffer = await fs.readFile(abs);
-          const { PDFParse } = await import('pdf-parse');
-          const parser = new PDFParse({ data: buffer });
-          const result = await parser.getText();
-          const info = await parser.getInfo();
-          content = result.text;
-
-          if (!content.trim()) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.warn(`PDF appears to be empty or unreadable: ${abs}`);
-            }
-            stats.filesSkipped++;
-            continue;
-          }
-
-          extraJson = JSON.stringify({
-            pages: info.total,
-            info: info.info,
-          });
-        } else if (isOffice(abs)) {
-          if (verbose) {
-            console.info(`Processing office document: ${abs}`);
-          }
+        if (isPdf(abs) || isOffice(abs) || isLegacyOfficeExt(abs) || isEpub(abs)) {
           const ext = path.extname(abs).toLowerCase();
-          let officeResult;
-          if (ext === '.docx') {
-            officeResult = await parseDocx(abs);
-          } else if (ext === '.xlsx') {
-            officeResult = await parseXlsx(abs);
+          if (verbose) {
+            console.info(`Processing document: ${abs}`);
+          }
+
+          // For EPUB with builtin parser, preserve chapter text join
+          if (isEpub(abs) && CONFIG.DOCUMENT_PARSER === 'builtin') {
+            const epubResult = await parseEpub(abs);
+            content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
+            extraJson = JSON.stringify(epubResult.metadata);
           } else {
-            officeResult = await parsePptx(abs);
+            const buffer = await fs.readFile(abs);
+            const result = await documentParser.parse(abs, buffer, ext);
+            content = result.text;
+            extraJson = JSON.stringify(result.metadata);
           }
-          content = officeResult.text;
+
           if (!content.trim()) {
             stats.filesSkipped++;
             continue;
           }
-          extraJson = JSON.stringify(officeResult.metadata);
-        } else if (isLegacyOfficeExt(abs)) {
-          if (!CONFIG.ONLYOFFICE_URL) {
-            console.warn(`Skipping legacy Office file (ONLYOFFICE_URL not configured): ${abs}`);
-            stats.filesSkipped++;
-            continue;
-          }
-          if (verbose) {
-            console.info(`Converting legacy office document: ${abs}`);
-          }
-          let convertedPath: string | undefined;
-          try {
-            convertedPath = await convertLegacyOffice(abs);
-            const outputExt = getLegacyOutputExt(abs) ?? '.docx';
-            let officeResult;
-            if (outputExt === '.docx') {
-              officeResult = await parseDocx(convertedPath);
-            } else if (outputExt === '.xlsx') {
-              officeResult = await parseXlsx(convertedPath);
-            } else {
-              officeResult = await parsePptx(convertedPath);
-            }
-            content = officeResult.text;
-            if (!content.trim()) {
-              stats.filesSkipped++;
-              continue;
-            }
-            extraJson = JSON.stringify({
-              ...officeResult.metadata,
-              convertedFrom: path.extname(abs).toLowerCase().slice(1),
-            });
-          } catch (convErr) {
-            if (process.env.NODE_ENV !== 'test') {
-              console.error(`Failed to convert legacy office file: ${abs}`, convErr);
-            }
-            stats.filesSkipped++;
-            continue;
-          } finally {
-            if (convertedPath) {
-              await fs.unlink(convertedPath).catch(() => {});
-            }
-          }
-        } else if (isEpub(abs)) {
-          if (verbose) {
-            console.info(`Processing EPUB: ${abs}`);
-          }
-          const epubResult = await parseEpub(abs);
-          content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
-          if (!content.trim()) {
-            stats.filesSkipped++;
-            continue;
-          }
-          extraJson = JSON.stringify(epubResult.metadata);
         } else if (isMedia(abs)) {
           if (verbose) {
             console.info(`Processing media file: ${abs}`);
@@ -295,89 +223,34 @@ export async function ingestSingleFileIncremental(
   filePath: string,
 ): Promise<IncrementalIndexResult | null> {
   const indexer = new IncrementalIndexer(adapter);
+  const documentParser = getDocumentParser();
 
   try {
     const abs = path.resolve(filePath);
     let content: string;
     let extraJson: string | null = null;
 
-    if (isPdf(abs)) {
-      console.info(`Processing PDF: ${abs}`);
-      const buffer = await fs.readFile(abs);
-      const { PDFParse } = await import('pdf-parse');
-      const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      const info = await parser.getInfo();
-      content = result.text;
-
-      if (!content.trim()) {
-        if (process.env.NODE_ENV !== 'test') {
-          console.warn(`PDF appears to be empty or unreadable: ${abs}`);
-        }
-        return null;
-      }
-
-      extraJson = JSON.stringify({
-        pages: info.total,
-        info: info.info,
-      });
-    } else if (isOffice(abs)) {
+    if (isPdf(abs) || isOffice(abs) || isLegacyOfficeExt(abs) || isEpub(abs)) {
       const ext = path.extname(abs).toLowerCase();
-      let officeResult;
-      if (ext === '.docx') {
-        officeResult = await parseDocx(abs);
-      } else if (ext === '.xlsx') {
-        officeResult = await parseXlsx(abs);
+      console.info(`Processing document: ${abs}`);
+
+      if (isEpub(abs) && CONFIG.DOCUMENT_PARSER === 'builtin') {
+        const epubResult = await parseEpub(abs);
+        content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
+        extraJson = JSON.stringify(epubResult.metadata);
       } else {
-        officeResult = await parsePptx(abs);
+        const buffer = await fs.readFile(abs);
+        const result = await documentParser.parse(abs, buffer, ext);
+        content = result.text;
+        extraJson = JSON.stringify(result.metadata);
       }
-      content = officeResult.text;
+
       if (!content.trim()) {
-        return null;
-      }
-      extraJson = JSON.stringify(officeResult.metadata);
-    } else if (isLegacyOfficeExt(abs)) {
-      if (!CONFIG.ONLYOFFICE_URL) {
-        console.warn(`Skipping legacy Office file (ONLYOFFICE_URL not configured): ${abs}`);
-        return null;
-      }
-      let convertedPath: string | undefined;
-      try {
-        convertedPath = await convertLegacyOffice(abs);
-        const outputExt = getLegacyOutputExt(abs) ?? '.docx';
-        let officeResult;
-        if (outputExt === '.docx') {
-          officeResult = await parseDocx(convertedPath);
-        } else if (outputExt === '.xlsx') {
-          officeResult = await parseXlsx(convertedPath);
-        } else {
-          officeResult = await parsePptx(convertedPath);
-        }
-        content = officeResult.text;
-        if (!content.trim()) {
-          return null;
-        }
-        extraJson = JSON.stringify({
-          ...officeResult.metadata,
-          convertedFrom: path.extname(abs).toLowerCase().slice(1),
-        });
-      } catch (convErr) {
         if (process.env.NODE_ENV !== 'test') {
-          console.error(`Failed to convert legacy office file: ${abs}`, convErr);
+          console.warn(`Document appears to be empty: ${abs}`);
         }
         return null;
-      } finally {
-        if (convertedPath) {
-          await fs.unlink(convertedPath).catch(() => {});
-        }
       }
-    } else if (isEpub(abs)) {
-      const epubResult = await parseEpub(abs);
-      content = epubResult.chapters.map((ch) => ch.text).join('\n\n');
-      if (!content.trim()) {
-        return null;
-      }
-      extraJson = JSON.stringify(epubResult.metadata);
     } else if (isMedia(abs)) {
       const mediaResult = await parseAudioVideo(abs);
       content = mediaResult.transcript || `Media: ${path.basename(abs)}`;

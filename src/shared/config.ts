@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 type EmbeddingsProvider = 'openai' | 'tei';
 type DatabaseType = 'sqlite' | 'postgresql' | 'vectorchord';
 type ConfluenceAuthMethod = 'basic' | 'bearer';
+type DocumentParserType = 'builtin' | 'docling';
 
 interface AppConfig {
   readonly EMBEDDINGS_PROVIDER: EmbeddingsProvider;
@@ -47,6 +48,9 @@ interface AppConfig {
   readonly ONLYOFFICE_URL: string;
   readonly ONLYOFFICE_JWT_SECRET: string;
   readonly ONLYOFFICE_TIMEOUT: number;
+
+  readonly DOCUMENT_PARSER: DocumentParserType;
+  readonly DOCLING_URL: string;
 }
 
 function splitCsv(v: string | undefined, def: string): readonly string[] {
@@ -69,6 +73,13 @@ function validateDatabaseType(dbType: string): DatabaseType {
     return dbType;
   }
   return 'sqlite';
+}
+
+function validateDocumentParser(parser: string): DocumentParserType {
+  if (parser === 'builtin' || parser === 'docling') {
+    return parser;
+  }
+  return 'builtin';
 }
 
 function validateConfluenceAuthMethod(method: string): ConfluenceAuthMethod {
@@ -136,6 +147,9 @@ function initializeConfig(): AppConfig {
       ONLYOFFICE_URL: process.env.ONLYOFFICE_URL || '',
       ONLYOFFICE_JWT_SECRET: process.env.ONLYOFFICE_JWT_SECRET || '',
       ONLYOFFICE_TIMEOUT: parseInt(process.env.ONLYOFFICE_TIMEOUT || '30000', 10),
+
+      DOCUMENT_PARSER: validateDocumentParser(process.env.DOCUMENT_PARSER || 'builtin'),
+      DOCLING_URL: process.env.DOCLING_URL || '',
     } as const;
   }
   return _config;

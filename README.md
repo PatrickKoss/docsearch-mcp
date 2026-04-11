@@ -326,6 +326,29 @@ ONLYOFFICE_URL=http://localhost:8080
 
 When `ONLYOFFICE_URL` is not set, legacy Office files are silently skipped during ingestion.
 
+### Docling Setup (ML-powered document parsing with OCR)
+
+For superior PDF parsing with OCR, layout analysis, and table extraction, you can use [Docling](https://github.com/docling-project/docling) as the document parser:
+
+```bash
+# Run docling-serve as a Docker container
+docker run -d --name docling -p 5001:5001 quay.io/docling-project/docling-serve
+
+# For CPU-only (smaller image):
+docker run -d --name docling -p 5001:5001 quay.io/docling-project/docling-serve-cpu
+```
+
+Then configure in `.env`:
+
+```bash
+DOCUMENT_PARSER=docling
+DOCLING_URL=http://localhost:5001
+```
+
+Docling supports: PDF, DOCX, PPTX, XLSX, HTML, images (PNG, JPG, TIFF), and EPUB. Audio, video, and code files always use the built-in parsers regardless of this setting.
+
+When `DOCUMENT_PARSER` is not set or set to `builtin`, the existing lightweight parsers (pdf-parse, mammoth, etc.) are used.
+
 EPUB files are processed with:
 
 - Chapter-by-chapter HTML content extraction and text conversion
