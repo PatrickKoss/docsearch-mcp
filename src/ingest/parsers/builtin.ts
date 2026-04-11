@@ -63,7 +63,10 @@ export class BuiltinParser implements DocumentParser {
   }
 
   private async parseOffice(filePath: string, ext: string): Promise<DocumentParseResult> {
-    const parseFn = OFFICE_PARSERS[ext]!;
+    const parseFn = OFFICE_PARSERS[ext];
+    if (!parseFn) {
+      return { text: '', metadata: {}, contentType: 'text' };
+    }
     const result = await parseFn(filePath);
 
     return {
@@ -82,7 +85,10 @@ export class BuiltinParser implements DocumentParser {
     const convertedPath = await convertLegacyOffice(filePath);
     try {
       const outputExt = getLegacyOutputExt(filePath) ?? '.docx';
-      const parseFn = OFFICE_PARSERS[outputExt] ?? OFFICE_PARSERS['.docx']!;
+      const parseFn = OFFICE_PARSERS[outputExt] ?? OFFICE_PARSERS['.docx'];
+      if (!parseFn) {
+        return { text: '', metadata: {}, contentType: 'text' };
+      }
       const result = await parseFn(convertedPath);
 
       return {
