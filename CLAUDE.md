@@ -153,6 +153,7 @@ Environment variables in `.env`:
 - **Files**: `FILE_ROOTS`, `FILE_INCLUDE_GLOBS`, `FILE_EXCLUDE_GLOBS`
 - **Database**: `DB_TYPE` (`sqlite`, `postgresql`, or `vectorchord`), `DB_PATH` (defaults to `./data/index.db`), `POSTGRES_CONNECTION_STRING`
 - **VectorChord** (when `DB_TYPE=vectorchord`): `VECTORCHORD_RESIDUAL_QUANTIZATION` (default: true), `VECTORCHORD_LISTS` (default: 100), `VECTORCHORD_SPHERICAL_CENTROIDS` (default: true), `VECTORCHORD_BUILD_THREADS` (default: 4), `VECTORCHORD_PROBES` (default: 10)
+- **OnlyOffice** (for legacy DOC/XLS/PPT): `ONLYOFFICE_URL` (base URL of Document Server), `ONLYOFFICE_JWT_SECRET` (optional JWT secret), `ONLYOFFICE_TIMEOUT` (default: 30000ms)
 
 ## Database Structure
 
@@ -192,8 +193,9 @@ Environment variables in `.env`:
 - **DOCX**: Uses `mammoth` for text extraction preserving paragraph structure
 - **XLSX**: Uses `xlsx` (SheetJS) for cell text extraction, capped at 100 sheets / 10,000 rows per sheet
 - **PPTX**: Uses `xlsx` for slide text extraction with slide number prefixes
+- **Legacy formats (DOC, XLS, PPT)**: Converted to modern formats via OnlyOffice Conversion API (`src/ingest/parsers/onlyoffice.ts`), then processed through existing parsers. Requires `ONLYOFFICE_URL` to be configured. When not set, legacy files are skipped with a warning.
 - **Dynamic Loading**: Libraries loaded only when processing their respective file types
-- **Metadata**: Format, sheet/slide count stored in `extra_json`
+- **Metadata**: Format, sheet/slide count stored in `extra_json`; legacy formats include `convertedFrom` field
 
 ### EPUB Support
 

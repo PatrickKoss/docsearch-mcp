@@ -9,10 +9,12 @@ import { IncrementalIndexer, type IncrementalIndexResult } from '../incremental-
 import { parseAudioVideo } from '../parsers/audio-video.js';
 import { parseEpub } from '../parsers/epub.js';
 import { parseDocx, parseXlsx, parsePptx } from '../parsers/office.js';
+import { convertLegacyOffice, getLegacyOutputExt } from '../parsers/onlyoffice.js';
 
 import type { DatabaseAdapter } from '../adapters/index.js';
 
 const OFFICE_EXT = new Set(['.docx', '.xlsx', '.pptx']);
+const LEGACY_OFFICE_EXT = new Set(['.doc', '.xls', '.ppt']);
 const EPUB_EXT = new Set(['.epub']);
 const AUDIO_EXT = new Set(['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac']);
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.mkv', '.avi', '.mov']);
@@ -27,6 +29,10 @@ function isOffice(p: string) {
 
 function isEpub(p: string) {
   return EPUB_EXT.has(path.extname(p).toLowerCase());
+}
+
+function isLegacyOfficeExt(p: string) {
+  return LEGACY_OFFICE_EXT.has(path.extname(p).toLowerCase());
 }
 
 function isMedia(p: string) {
@@ -99,6 +105,8 @@ export async function ingestFilesIncremental(
       absolute: true,
     });
 
+    const ingestedUris: string[] = [];
+
     for (const abs of files) {
       try {
         let content: string;
@@ -146,6 +154,47 @@ export async function ingestFilesIncremental(
             continue;
           }
           extraJson = JSON.stringify(officeResult.metadata);
+        } else if (isLegacyOfficeExt(abs)) {
+          if (!CONFIG.ONLYOFFICE_URL) {
+            console.warn(`Skipping legacy Office file (ONLYOFFICE_URL not configured): ${abs}`);
+            stats.filesSkipped++;
+            continue;
+          }
+          if (verbose) {
+            console.info(`Converting legacy office document: ${abs}`);
+          }
+          let convertedPath: string | undefined;
+          try {
+            convertedPath = await convertLegacyOffice(abs);
+            const outputExt = getLegacyOutputExt(abs) ?? '.docx';
+            let officeResult;
+            if (outputExt === '.docx') {
+              officeResult = await parseDocx(convertedPath);
+            } else if (outputExt === '.xlsx') {
+              officeResult = await parseXlsx(convertedPath);
+            } else {
+              officeResult = await parsePptx(convertedPath);
+            }
+            content = officeResult.text;
+            if (!content.trim()) {
+              stats.filesSkipped++;
+              continue;
+            }
+            extraJson = JSON.stringify({
+              ...officeResult.metadata,
+              convertedFrom: path.extname(abs).toLowerCase().slice(1),
+            });
+          } catch (convErr) {
+            if (process.env.NODE_ENV !== 'test') {
+              console.error(`Failed to convert legacy office file: ${abs}`, convErr);
+            }
+            stats.filesSkipped++;
+            continue;
+          } finally {
+            if (convertedPath) {
+              await fs.unlink(convertedPath).catch(() => {});
+            }
+          }
         } else if (isEpub(abs)) {
           if (verbose) {
             console.info(`Processing EPUB: ${abs}`);
@@ -170,9 +219,10 @@ export async function ingestFilesIncremental(
 
         const rel = path.relative(process.cwd(), abs);
         const uri = `file://${abs}`;
+        ingestedUris.push(uri);
         const stat = await fs.stat(abs);
         const ext = path.extname(abs).toLowerCase();
-        const titleExt = ['.pdf', '.docx', '.xlsx', '.pptx', '.epub'];
+        const titleExt = ['.pdf', '.docx', '.xlsx', '.pptx', '.doc', '.xls', '.ppt', '.epub'];
         const title = titleExt.includes(ext) ? path.basename(abs, ext) : path.basename(abs);
 
         const result = await indexer.indexFileIncremental(abs, content, {
@@ -208,6 +258,19 @@ export async function ingestFilesIncremental(
         }
         stats.filesSkipped++;
       }
+    }
+
+    // Clean up stale documents for this root
+    const rootPrefix = `file://${root}`;
+    const ingestedSet = new Set(ingestedUris);
+    const allDocs = await adapter.rawQuery(
+      `select uri from documents where source = 'file' and uri like '${rootPrefix}%'`,
+    );
+    const staleUris = allDocs
+      .map((row) => row.uri as string)
+      .filter((uri) => !ingestedSet.has(uri));
+    if (staleUris.length > 0) {
+      await adapter.deleteDocumentsByUris(staleUris);
     }
   }
 
@@ -273,6 +336,41 @@ export async function ingestSingleFileIncremental(
         return null;
       }
       extraJson = JSON.stringify(officeResult.metadata);
+    } else if (isLegacyOfficeExt(abs)) {
+      if (!CONFIG.ONLYOFFICE_URL) {
+        console.warn(`Skipping legacy Office file (ONLYOFFICE_URL not configured): ${abs}`);
+        return null;
+      }
+      let convertedPath: string | undefined;
+      try {
+        convertedPath = await convertLegacyOffice(abs);
+        const outputExt = getLegacyOutputExt(abs) ?? '.docx';
+        let officeResult;
+        if (outputExt === '.docx') {
+          officeResult = await parseDocx(convertedPath);
+        } else if (outputExt === '.xlsx') {
+          officeResult = await parseXlsx(convertedPath);
+        } else {
+          officeResult = await parsePptx(convertedPath);
+        }
+        content = officeResult.text;
+        if (!content.trim()) {
+          return null;
+        }
+        extraJson = JSON.stringify({
+          ...officeResult.metadata,
+          convertedFrom: path.extname(abs).toLowerCase().slice(1),
+        });
+      } catch (convErr) {
+        if (process.env.NODE_ENV !== 'test') {
+          console.error(`Failed to convert legacy office file: ${abs}`, convErr);
+        }
+        return null;
+      } finally {
+        if (convertedPath) {
+          await fs.unlink(convertedPath).catch(() => {});
+        }
+      }
     } else if (isEpub(abs)) {
       const epubResult = await parseEpub(abs);
       content = epubResult.chapters.map((ch) => ch.text).join('\n\n');

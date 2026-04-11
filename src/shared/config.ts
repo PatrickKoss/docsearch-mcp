@@ -43,6 +43,10 @@ interface AppConfig {
   readonly VECTORCHORD_SPHERICAL_CENTROIDS: boolean;
   readonly VECTORCHORD_BUILD_THREADS: number;
   readonly VECTORCHORD_PROBES: number;
+
+  readonly ONLYOFFICE_URL: string;
+  readonly ONLYOFFICE_JWT_SECRET: string;
+  readonly ONLYOFFICE_TIMEOUT: number;
 }
 
 function splitCsv(v: string | undefined, def: string): readonly string[] {
@@ -112,7 +116,7 @@ function initializeConfig(): AppConfig {
       FILE_ROOTS: splitCsv(process.env.FILE_ROOTS, '.'),
       FILE_INCLUDE_GLOBS: splitCsv(
         process.env.FILE_INCLUDE_GLOBS,
-        '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf,png,jpg,jpeg,gif,svg,webp}',
+        '**/*.{go,ts,tsx,js,py,rs,java,md,mdx,txt,yaml,yml,json,pdf,png,jpg,jpeg,gif,svg,webp,doc,xls,ppt}',
       ),
       FILE_EXCLUDE_GLOBS: splitCsv(
         process.env.FILE_EXCLUDE_GLOBS,
@@ -128,6 +132,10 @@ function initializeConfig(): AppConfig {
       VECTORCHORD_SPHERICAL_CENTROIDS: process.env.VECTORCHORD_SPHERICAL_CENTROIDS !== 'false',
       VECTORCHORD_BUILD_THREADS: parseInt(process.env.VECTORCHORD_BUILD_THREADS || '4', 10),
       VECTORCHORD_PROBES: parseInt(process.env.VECTORCHORD_PROBES || '10', 10),
+
+      ONLYOFFICE_URL: process.env.ONLYOFFICE_URL || '',
+      ONLYOFFICE_JWT_SECRET: process.env.ONLYOFFICE_JWT_SECRET || '',
+      ONLYOFFICE_TIMEOUT: parseInt(process.env.ONLYOFFICE_TIMEOUT || '30000', 10),
     } as const;
   }
   return _config;

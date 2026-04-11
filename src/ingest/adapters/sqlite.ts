@@ -38,6 +38,8 @@ export class SqliteAdapter implements DatabaseAdapter {
   private setMetaStmt!: Database.Statement;
   private getMetaStmt!: Database.Statement;
   private updateDocumentHashStmt!: Database.Statement;
+  private getDocumentByHashStmt!: Database.Statement;
+  private updateDocumentUriStmt!: Database.Statement;
   private keywordSearchStmt!: Database.Statement;
   private vectorSearchStmt!: Database.Statement;
 
@@ -119,6 +121,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         key text primary key,
         value text
       );
+
+      create index if not exists idx_documents_hash on documents(hash);
     `);
   }
 
@@ -192,6 +196,14 @@ export class SqliteAdapter implements DatabaseAdapter {
 
     this.updateDocumentHashStmt = this.db.prepare('update documents set hash = ? where id = ?');
 
+    this.getDocumentByHashStmt = this.db.prepare(
+      'select id, hash, uri from documents where hash = ? limit 1',
+    );
+
+    this.updateDocumentUriStmt = this.db.prepare(
+      'update documents set uri = ?, path = ?, title = ?, mtime = ? where id = ?',
+    );
+
     this.setMetaStmt = this.db.prepare(
       'insert into meta(key, value) values (?, ?) on conflict(key) do update set value=excluded.value',
     );
@@ -201,6 +213,53 @@ export class SqliteAdapter implements DatabaseAdapter {
   async getDocument(uri: string): Promise<{ id: number; hash: string } | null> {
     const row = this.getDocumentStmt.get(uri) as { id: number; hash: string } | undefined;
     return row || null;
+  }
+
+  async getDocumentByHash(hash: string): Promise<{ id: number; hash: string; uri: string } | null> {
+    const row = this.getDocumentByHashStmt.get(hash) as
+      | { id: number; hash: string; uri: string }
+      | undefined;
+    return row || null;
+  }
+
+  async updateDocumentUri(
+    id: number,
+    uri: string,
+    path: string,
+    title: string,
+    mtime: number,
+  ): Promise<void> {
+    this.updateDocumentUriStmt.run(uri, path, title, mtime, id);
+  }
+
+  async deleteDocumentsByUris(uris: string[]): Promise<void> {
+    if (uris.length === 0) {
+      return;
+    }
+    const transaction = this.db.transaction(() => {
+      for (const uri of uris) {
+        const doc = this.getDocumentStmt.get(uri) as { id: number } | undefined;
+        if (doc) {
+          this.db
+            .prepare(
+              `delete from vec_chunks where rowid in (
+                select m.vec_rowid from chunk_vec_map m
+                join chunks c on c.id = m.chunk_id
+                where c.document_id = ?
+              )`,
+            )
+            .run(doc.id);
+          this.db
+            .prepare(
+              'delete from chunk_vec_map where chunk_id in (select id from chunks where document_id=?)',
+            )
+            .run(doc.id);
+          this.db.prepare('delete from chunks where document_id = ?').run(doc.id);
+          this.db.prepare('delete from documents where id = ?').run(doc.id);
+        }
+      }
+    });
+    transaction();
   }
 
   async upsertDocument(doc: DocumentInput): Promise<number> {

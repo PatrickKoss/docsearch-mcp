@@ -11,7 +11,7 @@ A local-first document search and indexing system that provides hybrid semantic 
 - **🔍 Hybrid Search**: Combines full-text search (FTS) with vector similarity for optimal results
 - **📁 Multi-Source**: Index local files (code, docs, PDFs, office documents, ebooks, audio/video) and Confluence spaces
 - **📄 PDF Support**: Extract and search text from PDF documents with metadata preservation
-- **📝 Office Documents**: Extract and search text from DOCX, XLSX, and PPTX files
+- **📝 Office Documents**: Extract and search text from DOCX, XLSX, PPTX files, plus legacy DOC, XLS, PPT via OnlyOffice conversion
 - **📚 EPUB Support**: Chapter-aware parsing and indexing of ebook files
 - **🎵 Audio/Video**: Media metadata extraction with optional Whisper API transcription
 - **🖼️ Image Search**: AI-powered image description and search for diagrams, screenshots, and charts
@@ -288,7 +288,7 @@ The system automatically detects and processes different file types:
 - **Code files**: `.ts`, `.js`, `.py`, `.go`, `.rs`, `.java`, `.cpp`, `.c`, `.rb`, `.php`, `.kt`, `.swift`
 - **Documentation**: `.md`, `.mdx`, `.txt`, `.rst`, `.adoc`, `.yaml`, `.yml`, `.json`
 - **PDFs**: `.pdf` files are automatically parsed with text extraction and metadata preservation
-- **Office Documents**: `.docx`, `.xlsx`, `.pptx` files with text extraction and format-specific metadata
+- **Office Documents**: `.docx`, `.xlsx`, `.pptx` files with text extraction and format-specific metadata; `.doc`, `.xls`, `.ppt` via OnlyOffice conversion
 - **Ebooks**: `.epub` files with chapter-aware parsing and metadata extraction
 - **Audio**: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac` files with metadata extraction and optional transcription
 - **Video**: `.mp4`, `.webm`, `.mkv`, `.avi`, `.mov` files with metadata extraction and optional transcription
@@ -306,6 +306,25 @@ Office documents are processed with:
 - **DOCX**: Text and paragraph extraction via `mammoth`, preserving document structure
 - **XLSX**: Cell text extraction from all sheets (up to 100 sheets, 10,000 rows each) with sheet-name prefixes
 - **PPTX**: Slide text extraction with slide number prefixes
+- **Legacy formats** (DOC, XLS, PPT): Converted to modern formats via OnlyOffice Conversion API, then processed through the parsers above
+
+### OnlyOffice Setup (for legacy DOC/XLS/PPT support)
+
+Legacy Office formats require a running [OnlyOffice Document Server](https://helpcenter.onlyoffice.com/installation/docs-community-install-docker.aspx):
+
+```bash
+docker run -d --name onlyoffice -p 8080:80 onlyoffice/documentserver
+```
+
+Then configure in `.env`:
+
+```bash
+ONLYOFFICE_URL=http://localhost:8080
+# ONLYOFFICE_JWT_SECRET=your-secret    # if JWT auth is enabled on your server
+# ONLYOFFICE_TIMEOUT=30000             # conversion timeout in ms (default: 30000)
+```
+
+When `ONLYOFFICE_URL` is not set, legacy Office files are silently skipped during ingestion.
 
 EPUB files are processed with:
 

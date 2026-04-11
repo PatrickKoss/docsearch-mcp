@@ -101,5 +101,7 @@ function ensureSchema(db: DB, embeddingDim: number): void {
       key text primary key,
       value text
     );
+
+    create index if not exists idx_documents_hash on documents(hash);
   `);
 }

@@ -88,6 +88,7 @@ export class PostgresAdapter implements DatabaseAdapter {
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source)');
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_repo ON documents(repo)');
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path)');
+    await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(hash)');
     await this.client.query(
       'CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id)',
     );
@@ -126,6 +127,54 @@ export class PostgresAdapter implements DatabaseAdapter {
     const result = await this.client.query('SELECT id, hash FROM documents WHERE uri = $1', [uri]);
 
     return result.rows[0] || null;
+  }
+
+  async getDocumentByHash(hash: string): Promise<{ id: number; hash: string; uri: string } | null> {
+    const result = await this.client.query(
+      'SELECT id, hash, uri FROM documents WHERE hash = $1 LIMIT 1',
+      [hash],
+    );
+    return result.rows[0] || null;
+  }
+
+  async updateDocumentUri(
+    id: number,
+    uri: string,
+    path: string,
+    title: string,
+    mtime: number,
+  ): Promise<void> {
+    await this.client.query(
+      'UPDATE documents SET uri = $1, path = $2, title = $3, mtime = $4 WHERE id = $5',
+      [uri, path, title, mtime, id],
+    );
+  }
+
+  async deleteDocumentsByUris(uris: string[]): Promise<void> {
+    if (uris.length === 0) {
+      return;
+    }
+    await this.client.query('BEGIN');
+    try {
+      // Delete embeddings, chunks, and documents for each URI
+      await this.client.query(
+        `DELETE FROM chunk_embeddings WHERE chunk_id IN (
+          SELECT c.id FROM chunks c JOIN documents d ON d.id = c.document_id WHERE d.uri = ANY($1)
+        )`,
+        [uris],
+      );
+      await this.client.query(
+        `DELETE FROM chunks WHERE document_id IN (
+          SELECT id FROM documents WHERE uri = ANY($1)
+        )`,
+        [uris],
+      );
+      await this.client.query('DELETE FROM documents WHERE uri = ANY($1)', [uris]);
+      await this.client.query('COMMIT');
+    } catch (error) {
+      await this.client.query('ROLLBACK');
+      throw error;
+    }
   }
 
   async upsertDocument(doc: DocumentInput): Promise<number> {

@@ -33,6 +33,12 @@ export class IncrementalIndexer extends Indexer {
     const existingDoc = await this.incrementalAdapter.getDocument(documentMetadata.uri as string);
 
     if (!existingDoc) {
+      // Check if a document with the same content hash exists elsewhere (file move/rename)
+      const movedDoc = await this.incrementalAdapter.getDocumentByHash(newHash);
+      if (movedDoc && movedDoc.uri !== documentMetadata.uri) {
+        return this.handleFileMove(movedDoc, documentMetadata, startTime);
+      }
+
       return this.indexNewFile(fileContent, newHash, documentMetadata, startTime);
     }
 
@@ -91,6 +97,42 @@ export class IncrementalIndexer extends Indexer {
       chunksModified: result.modified,
       chunksDeleted: result.deleted,
       totalChunks: await this.incrementalAdapter.getChunkCount(existingDoc.id),
+      processingTime: Date.now() - startTime,
+    };
+  }
+
+  private async handleFileMove(
+    movedDoc: { id: number; hash: string; uri: string },
+    metadata: Omit<DocumentInput, 'hash'>,
+    startTime: number,
+  ): Promise<IncrementalIndexResult> {
+    const newUri = metadata.uri as string;
+    const oldUri = movedDoc.uri;
+
+    // Update the document's URI, path, title, and mtime in-place
+    await this.incrementalAdapter.updateDocumentUri(
+      movedDoc.id,
+      newUri,
+      metadata.path as string,
+      metadata.title as string,
+      metadata.mtime as number,
+    );
+
+    // Rename the stored content key in meta table
+    const oldContentKey = `content:${oldUri}`;
+    const newContentKey = `content:${newUri}`;
+    const oldContent = await this.getMeta(oldContentKey);
+    if (oldContent) {
+      await this.setMeta(newContentKey, oldContent);
+      await this.setMeta(oldContentKey, '');
+    }
+
+    return {
+      documentId: movedDoc.id,
+      chunksAdded: 0,
+      chunksModified: 0,
+      chunksDeleted: 0,
+      totalChunks: await this.incrementalAdapter.getChunkCount(movedDoc.id),
       processingTime: Date.now() - startTime,
     };
   }

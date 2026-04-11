@@ -75,6 +75,7 @@ export class VectorChordAdapter extends PostgresAdapter {
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source)');
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_repo ON documents(repo)');
     await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path)');
+    await this.client.query('CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(hash)');
     await this.client.query(
       'CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id)',
     );

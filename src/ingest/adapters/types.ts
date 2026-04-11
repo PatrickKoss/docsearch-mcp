@@ -39,8 +39,17 @@ export interface DatabaseAdapter {
 
   // Document operations
   getDocument(uri: string): Promise<{ id: number; hash: string } | null>;
+  getDocumentByHash(hash: string): Promise<{ id: number; hash: string; uri: string } | null>;
   upsertDocument(doc: DocumentInput): Promise<number>;
   updateDocumentHash(documentId: number, hash: string): Promise<void>;
+  updateDocumentUri(
+    id: number,
+    uri: string,
+    path: string,
+    title: string,
+    mtime: number,
+  ): Promise<void>;
+  deleteDocumentsByUris(uris: string[]): Promise<void>;
 
   // Chunk operations
   insertChunks(documentId: number, chunks: readonly ChunkInput[]): Promise<void>;
