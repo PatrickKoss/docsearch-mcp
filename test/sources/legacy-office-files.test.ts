@@ -147,7 +147,7 @@ describe('Legacy Office File Routing', () => {
     // Verify document was indexed
     const docs = await adapter.rawQuery("SELECT * FROM documents WHERE uri LIKE '%report.doc'");
     expect(docs.length).toBe(1);
-    expect(docs[0].lang).toBe('doc');
+    expect(docs[0]!.lang).toBe('doc');
   });
 
   it('should skip legacy files when ONLYOFFICE_URL is not configured', async () => {

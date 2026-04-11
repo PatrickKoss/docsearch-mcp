@@ -225,7 +225,7 @@ describe('OnlyOffice Conversion', () => {
         expect(parts).toHaveLength(3);
 
         // Decode and verify header
-        const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+        const header = JSON.parse(Buffer.from(parts[0]!, 'base64url').toString());
         expect(header.alg).toBe('HS256');
         expect(header.typ).toBe('JWT');
 
