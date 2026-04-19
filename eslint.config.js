@@ -18,6 +18,7 @@ export default [
       'vitest.config.ts',
       '.env*',
       'data/**',
+      'deploy/**',
     ],
   },
   {

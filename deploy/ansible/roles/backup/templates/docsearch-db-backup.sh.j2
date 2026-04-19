@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONTAINER="{{ db_container_name }}"
+DB="{{ db_name }}"
+SUPERUSER="{{ db_superuser }}"
+BACKUP_DIR="{{ backup_local_dir }}"
+RETENTION_DAYS="{{ backup_retention_days }}"
+TIMESTAMP=$(date +%Y%m%dT%H%M)
+DUMP_FILE="${BACKUP_DIR}/${TIMESTAMP}.dump"
+
+mkdir -p "${BACKUP_DIR}"
+
+echo "[backup] dumping ${DB} into ${DUMP_FILE}"
+# -u postgres so Unix-socket peer auth matches the postgres role.
+docker exec -u postgres "${CONTAINER}" pg_dump -U "${SUPERUSER}" -Fc "${DB}" > "${DUMP_FILE}"
+DUMP_SIZE=$(du -sh "${DUMP_FILE}" | cut -f1)
+echo "[backup] dump complete: ${DUMP_FILE} (${DUMP_SIZE})"
+
+# Prune dumps older than retention window
+find "${BACKUP_DIR}" -name "*.dump" -mtime "+${RETENTION_DAYS}" -delete
+echo "[backup] pruned dumps older than ${RETENTION_DAYS} days"
+
+{% if backup_s3_bucket | length > 0 %}
+# Upload to S3
+S3_KEY="docsearch-db-backups/$(hostname -s)/${TIMESTAMP}.dump"
+echo "[backup] uploading to s3://{{ backup_s3_bucket }}/${S3_KEY}"
+AWS_DEFAULT_REGION="{{ backup_s3_region }}" \
+  AWS_ACCESS_KEY_ID="{{ backup_s3_access_key | default('') }}" \
+  AWS_SECRET_ACCESS_KEY="{{ backup_s3_secret_key | default('') }}" \
+  aws s3 cp "${DUMP_FILE}" "s3://{{ backup_s3_bucket }}/${S3_KEY}"
+echo "[backup] S3 upload complete"
+{% endif %}

@@ -1,0 +1,24 @@
+# pg_hba.conf — managed by Ansible, do not edit manually
+# TYPE  DATABASE  USER      ADDRESS           METHOD
+
+# Local socket — superuser access (used by post-start SQL tasks)
+local   all       all                         peer
+
+# Loopback plaintext — only for localhost tooling
+host    all       all       127.0.0.1/32      scram-sha-256
+host    all       all       ::1/128           scram-sha-256
+
+{% if tls_mode != "disabled" %}
+{% for cidr in db_client_cidrs %}
+# Remote TLS — application user from allowed CIDR
+hostssl all       {{ db_app_user }}  {{ cidr }}  scram-sha-256
+{% endfor %}
+{% if db_client_cidrs | length == 0 %}
+# No db_client_cidrs configured — remote access requires TLS but no CIDRs are open
+# Add db_client_cidrs in group_vars/all.yml to allow remote connections.
+{% endif %}
+{% endif %}
+
+# Reject all other remote connections
+host    all       all       0.0.0.0/0         reject
+host    all       all       ::/0              reject

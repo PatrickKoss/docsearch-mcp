@@ -1,0 +1,35 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    tls_mode: selfsigned
+    admin_cidrs: []
+    db_client_cidrs: []
+    backup_s3_bucket: ""
+    # vfs storage driver required for Docker-in-Docker on WSL2 / nested containers
+    docker_storage_driver: vfs
+  vars_files:
+    - vault.yml
+
+  pre_tasks:
+    - name: Preflight | assert valid db_engine
+      ansible.builtin.assert:
+        that: db_engine in ["postgres", "vectorchord"]
+        fail_msg: "db_engine must be 'postgres' or 'vectorchord', got '{{ db_engine }}'."
+
+    - name: Preflight | assert required secrets are defined
+      ansible.builtin.assert:
+        that:
+          - db_superuser_password is defined and db_superuser_password | length > 0
+          - db_app_user is defined and db_app_user | length > 0
+          - db_app_password is defined and db_app_password | length > 0
+        fail_msg: >
+          Required vault secrets missing. Check molecule/default/vault.yml.
+
+  roles:
+    - role: common
+    - role: docker
+    - role: tls
+    - role: database
+    - role: backup

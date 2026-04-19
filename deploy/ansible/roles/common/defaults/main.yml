@@ -1,0 +1,4 @@
+---
+# These are the only role-specific defaults for the common role.
+# All db_*, admin_cidrs, db_client_cidrs come from group_vars/all.yml.
+common_extra_packages: []

@@ -1,0 +1,6 @@
+{{ ({
+  "log-driver": "json-file",
+  "log-opts": {"max-size": "50m", "max-file": "5"}
+} | combine(
+  {"storage-driver": docker_storage_driver} if docker_storage_driver | default('') != '' else {}
+)) | to_nice_json }}

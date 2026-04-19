@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: docker
+  author: docsearch-mcp
+  description: Install Docker CE and configure daemon
+  license: Apache-2.0
+  min_ansible_version: "2.17"

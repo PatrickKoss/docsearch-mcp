@@ -1,0 +1,60 @@
+---
+- name: Let's Encrypt | install certbot and DNS plugin
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - "python3-certbot-dns-{{ certbot_dns_provider }}"
+    state: present
+
+- name: Let's Encrypt | obtain certificate
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      --non-interactive
+      --agree-tos
+      --email admin@{{ db_fqdn }}
+      --dns-{{ certbot_dns_provider }}
+      -d {{ db_fqdn }}
+      --cert-path {{ tls_dir }}/server.crt
+      --key-path {{ tls_dir }}/server.key
+      --fullchain-path {{ tls_dir }}/server.crt
+      --chain-path {{ tls_dir }}/ca.crt
+    creates: "{{ tls_dir }}/server.crt"
+
+- name: Let's Encrypt | install renewal systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/certbot-renew-docsearch.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Certbot renewal for docsearch-db
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/certbot renew --quiet \
+        --deploy-hook "docker kill --signal=SIGHUP {{ db_container_name }}"
+      PrivateTmp=true
+
+- name: Let's Encrypt | install renewal systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/certbot-renew-docsearch.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly certbot renewal for docsearch-db
+
+      [Timer]
+      OnCalendar=weekly
+      RandomizedDelaySec=1h
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Let's Encrypt | enable renewal timer
+  ansible.builtin.systemd:
+    name: certbot-renew-docsearch.timer
+    state: started
+    enabled: true
+    daemon_reload: true

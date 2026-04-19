@@ -1,0 +1,45 @@
+---
+- name: Deploy docsearch-mcp database (Postgres or VectorChord)
+  hosts: all
+  become: true
+  vars_files:
+    - group_vars/all/vault.yml
+
+  pre_tasks:
+    - name: Preflight | assert supported OS
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+            or ansible_distribution == "Debian" and ansible_distribution_major_version == "12"
+        fail_msg: >
+          Unsupported OS: {{ ansible_distribution }} {{ ansible_distribution_version }}.
+          Supported: Ubuntu 22.04, Debian 12.
+
+    - name: Preflight | assert valid db_engine
+      ansible.builtin.assert:
+        that: db_engine in ["postgres", "vectorchord"]
+        fail_msg: >
+          db_engine must be 'postgres' or 'vectorchord', got '{{ db_engine }}'.
+
+    - name: Preflight | assert required secrets are defined
+      ansible.builtin.assert:
+        that:
+          - db_superuser_password is defined and db_superuser_password | length > 0
+          - db_app_user is defined and db_app_user | length > 0
+          - db_app_password is defined and db_app_password | length > 0
+        fail_msg: >
+          Required vault secrets missing. Ensure db_superuser_password,
+          db_app_user, and db_app_password are set in group_vars/all/vault.yml.
+
+    - name: Preflight | assert letsencrypt requires db_fqdn
+      ansible.builtin.assert:
+        that: db_fqdn | length > 0
+        fail_msg: db_fqdn must be set when tls_mode=letsencrypt.
+      when: tls_mode == "letsencrypt"
+
+  roles:
+    - role: common
+    - role: docker
+    - role: tls
+    - role: database
+    - role: backup

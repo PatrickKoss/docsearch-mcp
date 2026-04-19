@@ -1,0 +1,61 @@
+---
+- name: Backup | create local backup directory
+  ansible.builtin.file:
+    path: "{{ backup_local_dir }}"
+    state: directory
+    mode: "0750"
+    owner: root
+    group: root
+
+- name: Backup | install awscli when S3 target is configured
+  ansible.builtin.apt:
+    name: awscli
+    state: present
+  when: backup_s3_bucket | length > 0
+
+- name: Backup | install backup script
+  ansible.builtin.template:
+    src: docsearch-db-backup.sh.j2
+    dest: /usr/local/bin/docsearch-db-backup.sh
+    mode: "0750"
+    owner: root
+    group: root
+
+- name: Backup | install backup systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docsearch-db-backup.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=docsearch-db nightly pg_dump backup
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/docsearch-db-backup.sh
+      StandardOutput=journal
+      StandardError=journal
+
+- name: Backup | install backup systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docsearch-db-backup.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=docsearch-db nightly pg_dump backup timer
+
+      [Timer]
+      OnCalendar={{ backup_schedule }}
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd and enable backup timer
+
+- name: Backup | enable and start backup timer
+  ansible.builtin.systemd:
+    name: docsearch-db-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true

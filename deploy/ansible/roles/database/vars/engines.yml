@@ -1,0 +1,15 @@
+---
+# Engine-to-image mapping (pinned tags override via defaults/group_vars)
+database_engines:
+  postgres:
+    image: "pgvector/pgvector:{{ postgres_image_tag }}"
+    extensions:
+      - vector
+  vectorchord:
+    image: "tensorchord/vchord-postgres:{{ vectorchord_image_tag }}"
+    extensions:
+      - vector
+      - vchord
+
+database_image: "{{ database_engines[db_engine].image }}"
+database_extensions: "{{ database_engines[db_engine].extensions }}"

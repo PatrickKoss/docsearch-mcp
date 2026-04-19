@@ -1,0 +1,6 @@
+---
+# Role-specific defaults only. All db_*, certbot_*, allow_insecure
+# come from group_vars/all.yml and must be set there.
+tls_selfsigned_days: 3650
+tls_ca_common_name: docsearch-db-ca
+tls_server_common_name: "{{ db_fqdn if db_fqdn | default('') | length > 0 else 'localhost' }}"

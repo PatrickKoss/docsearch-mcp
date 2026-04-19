@@ -1,0 +1,143 @@
+---
+- name: Database | load engine variables
+  ansible.builtin.include_vars: engines.yml
+
+- name: Database | create data directory
+  ansible.builtin.file:
+    path: "{{ db_data_dir }}"
+    state: directory
+    mode: "0700"
+    # UID 999 is the default postgres user inside official Postgres images
+    owner: "999"
+    group: "999"
+
+- name: Database | create PGDATA subdirectory
+  # PGDATA lives in its own subdir so the conf.d sibling mount does not make
+  # initdb see a non-empty data directory on first start.
+  ansible.builtin.file:
+    path: "{{ db_data_dir }}/pgdata"
+    state: directory
+    mode: "0700"
+    owner: "999"
+    group: "999"
+
+- name: Database | create postgres config overlay directory
+  ansible.builtin.file:
+    path: "{{ db_data_dir }}/conf.d"
+    state: directory
+    mode: "0700"
+    owner: "999"
+    group: "999"
+
+- name: Database | render postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "{{ db_data_dir }}/conf.d/postgresql.conf"
+    mode: "0640"
+    owner: "999"
+    group: "999"
+
+- name: Database | pull container image
+  community.docker.docker_image:
+    name: "{{ database_image }}"
+    source: pull
+
+- name: Database | launch container
+  community.docker.docker_container:
+    name: "{{ db_container_name }}"
+    image: "{{ database_image }}"
+    state: started
+    restart_policy: unless-stopped
+    # Run postgres with our templated config_file. It pulls in the cluster's
+    # default postgresql.conf via include_if_exists, then applies our overrides.
+    # hba_file points at the ansible-rendered pg_hba.conf in the TLS dir.
+    command: >-
+      postgres
+      -c config_file=/etc/postgresql/conf.d/postgresql.conf
+      -c hba_file=/etc/ssl/docsearch-db/pg_hba.conf
+    env:
+      POSTGRES_USER: "{{ db_superuser }}"
+      POSTGRES_PASSWORD: "{{ db_superuser_password }}"
+      POSTGRES_DB: "{{ db_name }}"
+    ports:
+      - "{{ db_port }}:5432"
+    volumes:
+      - "{{ db_data_dir }}/pgdata:/var/lib/postgresql/data"
+      - "{{ db_data_dir }}/conf.d:/etc/postgresql/conf.d:ro"
+      - "{{ tls_dir }}:/etc/ssl/docsearch-db:ro"
+    memory: "{{ db_container_memory if db_container_memory != '0' else omit }}"
+    cpus: "{{ db_container_cpus if db_container_cpus != '0' else omit }}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_superuser }}"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+- name: Database | wait for Postgres to be healthy
+  community.docker.docker_container_info:
+    name: "{{ db_container_name }}"
+  register: database_container_info
+  until: database_container_info.container.State.Health.Status == "healthy"
+  retries: "{{ database_healthcheck_retries }}"
+  delay: "{{ database_healthcheck_delay }}"
+
+# All psql calls below run as the in-container postgres OS user so the
+# local socket's `peer` auth (set in pg_hba.conf) resolves to the postgres
+# Postgres role without needing a password.
+- name: Database | check if application role exists
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      psql -U {{ db_superuser }} -tc
+      "SELECT 1 FROM pg_roles WHERE rolname='{{ db_app_user }}'"
+  register: database_role_exists
+  changed_when: false
+
+- name: Database | create application role
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      psql -U {{ db_superuser }} -c
+      "CREATE ROLE {{ db_app_user }} WITH LOGIN PASSWORD '{{ db_app_password }}'"
+  when: "'1' not in database_role_exists.stdout"
+
+- name: Database | check if application database exists
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      psql -U {{ db_superuser }} -tc
+      "SELECT 1 FROM pg_database WHERE datname='{{ db_name }}'"
+  register: database_db_exists
+  changed_when: false
+
+- name: Database | ensure database exists
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      createdb -U {{ db_superuser }} {{ db_name }}
+  when: "'1' not in database_db_exists.stdout"
+
+- name: Database | grant privileges to app role
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      psql -U {{ db_superuser }} -d {{ db_name }} -c
+      "GRANT ALL PRIVILEGES ON DATABASE {{ db_name }} TO {{ db_app_user }};
+       ALTER DATABASE {{ db_name }} OWNER TO {{ db_app_user }}"
+  changed_when: false
+
+- name: Database | create extensions
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    user: postgres
+    command: >-
+      psql -U {{ db_superuser }} -d {{ db_name }} -c
+      "CREATE EXTENSION IF NOT EXISTS {{ item }}"
+  loop: "{{ database_extensions }}"
+  changed_when: false

@@ -1,0 +1,5 @@
+---
+# Role-specific defaults. All db_*, tls_*, vectorchord_*, pg_*
+# come from group_vars/all.yml and must be set there.
+database_healthcheck_retries: 30
+database_healthcheck_delay: 2

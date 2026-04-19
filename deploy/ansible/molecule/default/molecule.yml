@@ -1,0 +1,96 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: ubuntu2204-postgres
+    image: geerlingguy/docker-ubuntu2204-ansible:latest
+    command: /sbin/init
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    pre_build_image: true
+    groups:
+      - all
+    docker_networks:
+      - name: molecule
+    env:
+      DB_ENGINE: postgres
+
+  - name: ubuntu2204-vectorchord
+    image: geerlingguy/docker-ubuntu2204-ansible:latest
+    command: /sbin/init
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    pre_build_image: true
+    groups:
+      - all
+    docker_networks:
+      - name: molecule
+    env:
+      DB_ENGINE: vectorchord
+
+  - name: debian12-postgres
+    image: geerlingguy/docker-debian12-ansible:latest
+    command: /sbin/init
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    pre_build_image: true
+    groups:
+      - all
+    docker_networks:
+      - name: molecule
+    env:
+      DB_ENGINE: postgres
+
+  - name: debian12-vectorchord
+    image: geerlingguy/docker-debian12-ansible:latest
+    command: /sbin/init
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    pre_build_image: true
+    groups:
+      - all
+    docker_networks:
+      - name: molecule
+    env:
+      DB_ENGINE: vectorchord
+
+provisioner:
+  name: ansible
+  env:
+    # These are set by the Makefile/CI to absolute paths before invoking molecule.
+    ANSIBLE_VAULT_PASSWORD_FILE: ${ANSIBLE_VAULT_PASSWORD_FILE}
+    ANSIBLE_COLLECTIONS_PATH: ${ANSIBLE_COLLECTIONS_PATH}
+    # Override Molecule's auto-constructed ANSIBLE_ROLES_PATH which uses the wrong
+    # parent directory. Explicit absolute path ensures roles are found from the
+    # cache directory where ansible-playbook actually runs.
+    ANSIBLE_ROLES_PATH: ${ANSIBLE_ROLES_PATH}
+  inventory:
+    links:
+      group_vars: ../../group_vars
+      host_vars: host_vars
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

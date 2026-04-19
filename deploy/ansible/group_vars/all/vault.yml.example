@@ -1,0 +1,24 @@
+---
+# This file shows the secrets that MUST live in the ansible-vault encrypted
+# file at group_vars/all/vault.yml.  Copy this, fill in real values, then:
+#
+#   ansible-vault encrypt group_vars/all/vault.yml
+#
+# All variables below are required unless marked optional.
+
+# Postgres superuser password (POSTGRES_PASSWORD env var passed to the container)
+db_superuser_password: "CHANGE_ME_superuser"
+
+# Application-level credentials — a dedicated, least-privilege role
+db_app_user: "docsearch"
+db_app_password: "CHANGE_ME_app"
+
+# Reserved for future HA / streaming replication (unused today)
+db_replication_password: "CHANGE_ME_replication"
+
+# S3-compatible backup credentials (optional — only needed when backup_s3_bucket is set)
+backup_s3_access_key: ""
+backup_s3_secret_key: ""
+
+# Required when tls_mode=letsencrypt with certbot_dns_provider=cloudflare
+# certbot_cloudflare_api_token: "CHANGE_ME_cloudflare_token"

@@ -1,0 +1,7 @@
+---
+- name: Reload systemd and enable backup timer
+  ansible.builtin.systemd:
+    name: docsearch-db-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true

@@ -72,6 +72,10 @@ make incremental-all         # Alias for incremental indexing of all sources
 make incremental-watch       # Alias for incremental file watching
 make incremental-benchmark   # Compare full vs incremental indexing performance
 
+# Ansible Deployment (deploy/ansible/)
+make ansible-test            # Run Molecule tests for Ansible deployment (requires Docker)
+make ansible-lint            # Lint Ansible playbook with ansible-lint
+
 # Alternative pnpm commands
 pnpm test                    # Run tests in watch mode
 pnpm test:run                # Run tests once
@@ -176,6 +180,18 @@ Environment variables in `.env`:
 - Filters: source type, repository, path prefix
 
 ## Development Notes
+
+### Ansible Deployment Tests
+
+The `deploy/ansible/` directory contains a Molecule-based test suite for the Postgres/VectorChord deployment playbook. It is **not** covered by the TypeScript lint/typecheck pipeline.
+
+To run the Ansible tests locally (requires Docker and Python 3.11+):
+
+```bash
+make ansible-test
+```
+
+What it covers: spins up Ubuntu 22.04 and Debian 12 Docker containers with systemd, runs `site.yml` against each, then verifies that the database container is healthy, TLS works, the `vector`/`vchord` extensions load (when `db_engine=vectorchord`), a vector k-NN round trip succeeds, and the nightly backup timer is enabled. It also confirms the playbook is idempotent (second run reports `changed=0`).
 
 - Uses sqlite-vec for vector operations and FTS5 for keyword search
 - Chunks are embedded in batches of 64 with rate limiting

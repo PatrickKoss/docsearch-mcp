@@ -1,0 +1,3 @@
+---
+# Role-specific defaults. All backup_*, db_* come from group_vars/all.yml.
+backup_script_path: /usr/local/bin/docsearch-db-backup.sh

@@ -1,0 +1,40 @@
+---
+- name: TLS | assert disabled mode requires allow_insecure
+  ansible.builtin.fail:
+    msg: >
+      tls_mode=disabled is not allowed in production.
+      Set allow_insecure=true to acknowledge the risk.
+  when: tls_mode == "disabled" and not allow_insecure
+
+- name: TLS | warn when insecure mode is accepted
+  ansible.builtin.debug:
+    msg: "WARNING: TLS is disabled. Connections to Postgres will be unencrypted."
+  when: tls_mode == "disabled" and allow_insecure
+
+- name: TLS | create certificate directory
+  # Group-owned by the container's postgres user (uid 999) so the bind-mounted
+  # files are readable inside the docsearch-db container. Private key stays
+  # group-readable only; host-side non-postgres users cannot read it.
+  ansible.builtin.file:
+    path: "{{ tls_dir }}"
+    state: directory
+    mode: "0750"
+    owner: root
+    group: "999"
+  when: tls_mode != "disabled"
+
+- name: Include self-signed tasks
+  ansible.builtin.include_tasks: selfsigned.yml
+  when: tls_mode == "selfsigned"
+
+- name: Include letsencrypt tasks
+  ansible.builtin.include_tasks: letsencrypt.yml
+  when: tls_mode == "letsencrypt"
+
+- name: Render pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ tls_dir }}/pg_hba.conf"
+    mode: "0640"
+    owner: root
+    group: "999"

@@ -1,0 +1,60 @@
+---
+- name: Self-signed | generate CA private key
+  community.crypto.openssl_privatekey:
+    path: "{{ tls_dir }}/ca.key"
+    size: 4096
+    mode: "0600"
+
+- name: Self-signed | generate CA CSR
+  community.crypto.openssl_csr:
+    path: "{{ tls_dir }}/ca.csr"
+    privatekey_path: "{{ tls_dir }}/ca.key"
+    common_name: "docsearch-db-ca"
+    basic_constraints:
+      - "CA:TRUE"
+    basic_constraints_critical: true
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    mode: "0600"
+
+- name: Self-signed | generate CA certificate
+  community.crypto.x509_certificate:
+    path: "{{ tls_dir }}/ca.crt"
+    privatekey_path: "{{ tls_dir }}/ca.key"
+    csr_path: "{{ tls_dir }}/ca.csr"
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    mode: "0644"
+
+- name: Self-signed | generate server private key
+  community.crypto.openssl_privatekey:
+    path: "{{ tls_dir }}/server.key"
+    size: 4096
+    # 0640 with group=999 lets the container's postgres user read the key
+    # via group perms; owner must be root for Postgres's own startup check.
+    mode: "0640"
+    owner: root
+    group: "999"
+
+- name: Self-signed | generate server CSR
+  community.crypto.openssl_csr:
+    path: "{{ tls_dir }}/server.csr"
+    privatekey_path: "{{ tls_dir }}/server.key"
+    common_name: "{{ db_fqdn if db_fqdn | length > 0 else 'localhost' }}"
+    subject_alt_name:
+      - "DNS:{{ db_fqdn if db_fqdn | length > 0 else 'localhost' }}"
+      - "DNS:localhost"
+      - "IP:127.0.0.1"
+    mode: "0600"
+
+- name: Self-signed | generate server certificate signed by local CA
+  community.crypto.x509_certificate:
+    path: "{{ tls_dir }}/server.crt"
+    privatekey_path: "{{ tls_dir }}/server.key"
+    csr_path: "{{ tls_dir }}/server.csr"
+    ownca_path: "{{ tls_dir }}/ca.crt"
+    ownca_privatekey_path: "{{ tls_dir }}/ca.key"
+    provider: ownca
+    ownca_not_after: "+3650d"
+    mode: "0644"

@@ -1212,6 +1212,21 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 6. Push to the branch (`git push origin feature/AmazingFeature`)
 7. Open a Pull Request
 
+## 🚀 Deployment (Postgres / VectorChord on a VM)
+
+SQLite is the default for local development and requires no extra infrastructure. When you're ready to run Postgres or VectorChord on a production VM, use the Ansible playbook in [`deploy/ansible/`](deploy/ansible/README.md).
+
+It handles:
+
+- Docker installation
+- TLS (self-signed for labs, Let's Encrypt for production)
+- UFW firewall with configurable CIDRs
+- Credential management via `ansible-vault`
+- Nightly `pg_dump` backups with optional S3 upload
+- Molecule tests that prove the database is reachable after deploy
+
+See **[deploy/ansible/README.md](deploy/ansible/README.md)** for the full operator guide.
+
 ## 📝 License
 
 This project is licensed under the Apache License Version 2 - see the [LICENSE](LICENSE) file for details.

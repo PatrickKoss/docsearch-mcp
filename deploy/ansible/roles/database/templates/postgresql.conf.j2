@@ -1,0 +1,27 @@
+# postgresql.conf — managed by Ansible.
+# Pulls in the cluster's default postgresql.conf (written by initdb) first,
+# then applies the overrides below. Using include_if_exists so the file is
+# still valid before the cluster is initialized.
+include_if_exists = '/var/lib/postgresql/data/postgresql.conf'
+
+listen_addresses = '*'
+shared_buffers   = '{{ pg_shared_buffers }}'
+
+{% if tls_mode != "disabled" %}
+ssl              = on
+ssl_cert_file    = '/etc/ssl/docsearch-db/server.crt'
+ssl_key_file     = '/etc/ssl/docsearch-db/server.key'
+ssl_ca_file      = '/etc/ssl/docsearch-db/ca.crt'
+{% else %}
+ssl              = off
+{% endif %}
+
+{% if db_engine == "vectorchord" %}
+# VectorChord tuning — mirrors VECTORCHORD_* env vars in src/shared/config.ts
+shared_preload_libraries = 'vchord.so'
+vchord.residual_quantization = {{ vectorchord_residual_quantization | string | lower }}
+vchord.lists                 = {{ vectorchord_lists }}
+vchord.spherical_centroids   = {{ vectorchord_spherical_centroids | string | lower }}
+vchord.build_threads         = {{ vectorchord_build_threads }}
+vchord.probes                = {{ vectorchord_probes }}
+{% endif %}

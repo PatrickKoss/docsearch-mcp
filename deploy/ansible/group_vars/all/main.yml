@@ -1,0 +1,60 @@
+---
+# ── Engine selection ────────────────────────────────────────────────────────
+# Allowed: "postgres" or "vectorchord"
+db_engine: postgres
+
+# ── Image tags (pinned for reproducibility) ─────────────────────────────────
+postgres_image_tag: "pg16"
+vectorchord_image_tag: "pg16-v0.2.2"
+
+# ── Database identity ────────────────────────────────────────────────────────
+db_name: docsearch
+db_superuser: postgres
+db_port: 5432
+db_container_name: docsearch-db
+
+# ── Data volume ──────────────────────────────────────────────────────────────
+db_data_dir: /var/lib/docsearch-db
+
+# ── TLS ──────────────────────────────────────────────────────────────────────
+# Allowed: "selfsigned", "letsencrypt", "disabled"
+tls_mode: selfsigned
+tls_dir: /etc/ssl/docsearch-db
+# Required when tls_mode=letsencrypt
+db_fqdn: ""
+# DNS provider for certbot (e.g. cloudflare, route53, digitalocean)
+certbot_dns_provider: cloudflare
+# Set to true only when tls_mode=disabled and you accept the security risk
+allow_insecure: false
+
+# ── Firewall ─────────────────────────────────────────────────────────────────
+# CIDRs that may SSH in; empty = any (not recommended for production)
+admin_cidrs: []
+# CIDRs that may connect to Postgres; empty = loopback only
+db_client_cidrs: []
+
+# ── Container resource limits ────────────────────────────────────────────────
+# Set to 0 to leave unlimited (default)
+db_container_memory: "0"
+db_container_cpus: "0"
+
+# ── Backups ──────────────────────────────────────────────────────────────────
+backup_local_dir: /var/backups/docsearch-db
+backup_retention_days: 14
+# Systemd OnCalendar expression for the backup timer
+backup_schedule: "*-*-* 02:30:00"
+# Leave empty to disable S3 upload
+backup_s3_bucket: ""
+backup_s3_region: "us-east-1"
+
+# ── VectorChord tuning (only applied when db_engine=vectorchord) ─────────────
+# Maps to VECTORCHORD_* env vars consumed by src/shared/config.ts
+vectorchord_residual_quantization: true
+vectorchord_lists: 100
+vectorchord_spherical_centroids: true
+vectorchord_build_threads: 4
+vectorchord_probes: 10
+
+# ── PostgreSQL shared_buffers ────────────────────────────────────────────────
+# Rule of thumb: 25% of VM RAM; expressed as a Postgres memory string
+pg_shared_buffers: "256MB"

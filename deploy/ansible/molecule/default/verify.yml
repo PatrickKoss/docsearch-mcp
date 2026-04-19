@@ -1,0 +1,120 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars_files:
+    - vault.yml
+
+  tasks:
+    - name: Verify | check container is running
+      community.docker.docker_container_info:
+        name: docsearch-db
+      register: _container
+
+    - name: Verify | assert container is running and healthy
+      ansible.builtin.assert:
+        that:
+          - _container.container.State.Status == "running"
+          - _container.container.State.Health.Status == "healthy"
+        fail_msg: "Container state: {{ _container.container.State.Status }}, health: {{ _container.container.State.Health.Status }}"
+
+    - name: Verify | run SELECT 1 as app user
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }}
+          -c "SELECT 1 AS result"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      register: _select1
+      failed_when: "'1 row' not in _select1.stdout"
+      changed_when: false
+
+    - name: Verify | create vector extension
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }}
+          -c "CREATE EXTENSION IF NOT EXISTS vector"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      changed_when: false
+
+    - name: Verify | create vchord extension (vectorchord engine only)
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }}
+          -c "CREATE EXTENSION IF NOT EXISTS vchord"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      when: db_engine == "vectorchord"
+      changed_when: false
+
+    - name: Verify | create test table for vector round trip
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }} -c
+          "CREATE TABLE IF NOT EXISTS _molecule_test (id serial PRIMARY KEY, embedding vector(3))"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      changed_when: false
+
+    - name: Verify | insert test vector row
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }} -c
+          "INSERT INTO _molecule_test (embedding) VALUES ('[1,2,3]')"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      changed_when: true
+
+    - name: Verify | k-NN query returns inserted row
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }} -tc
+          "SELECT id FROM _molecule_test ORDER BY embedding <-> '[1,2,3]' LIMIT 1"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      register: _knn
+      failed_when: _knn.stdout | trim | length == 0
+      changed_when: false
+
+    - name: Verify | cleanup test table
+      community.docker.docker_container_exec:
+        container: docsearch-db
+        command: >-
+          psql -h 127.0.0.1 -U {{ db_app_user }} -d {{ db_name | default('docsearch') }} -c
+          "DROP TABLE IF EXISTS _molecule_test"
+        env:
+          PGPASSWORD: "{{ db_app_password }}"
+      changed_when: false
+
+    - name: Verify | backup timer is active
+      ansible.builtin.command: systemctl is-active docsearch-db-backup.timer
+      register: _timer_status
+      failed_when: _timer_status.stdout != "active"
+      changed_when: false
+
+    - name: Verify | run backup service once
+      ansible.builtin.command: systemctl start docsearch-db-backup.service
+      changed_when: true
+
+    - name: Verify | find dump files
+      ansible.builtin.find:
+        paths: /var/backups/docsearch-db
+        patterns: "*.dump"
+      register: _dump_files
+      failed_when: _dump_files.files | length == 0
+
+    - name: Verify | validate dump via direct pg_restore inside container
+      ansible.builtin.shell: |
+        set -e
+        DUMP="{{ _dump_files.files[0].path }}"
+        docker cp "$DUMP" docsearch-db:/tmp/verify.dump
+        docker exec docsearch-db pg_restore --list /tmp/verify.dump
+        docker exec docsearch-db rm -f /tmp/verify.dump
+      changed_when: false

@@ -1,0 +1,63 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-requests
+      - ca-certificates
+      - curl
+      - gnupg
+      - ufw
+      - acl
+      - unattended-upgrades
+      - apt-transport-https
+      - lsb-release
+    state: present
+
+- name: Apply sysctl settings
+  # We keep kernel defaults; the only production-relevant override for Postgres
+  # is vm.overcommit_memory=2 to prevent OOM kills, but that requires careful
+  # overcommit_ratio tuning. Leaving at default (0) is safer for single-tenant VMs.
+  ansible.posix.sysctl:
+    name: net.core.somaxconn
+    value: "1024"
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Configure UFW default deny
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming
+
+- name: Allow SSH from admin_cidrs
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ admin_cidrs }}"
+  when: admin_cidrs | length > 0
+
+- name: Allow SSH from anywhere when admin_cidrs is empty
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  when: admin_cidrs | length == 0
+
+- name: Allow Postgres from db_client_cidrs
+  community.general.ufw:
+    rule: allow
+    port: "{{ db_port }}"
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ db_client_cidrs }}"
+  when: db_client_cidrs | length > 0

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: database
+  author: docsearch-mcp
+  description: Launch Postgres or VectorChord container and initialize the database
+  license: Apache-2.0
+  min_ansible_version: "2.17"

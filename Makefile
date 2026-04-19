@@ -240,6 +240,40 @@ setup: install rebuild-native ## Setup the project for development
 	fi
 	@echo -e "$(GREEN)Project setup complete!$(NC)"
 
+##@ Ansible Deployment
+
+ANSIBLE_DIR := deploy/ansible
+
+.PHONY: ansible-test
+ansible-test: ## Run Molecule tests for the Ansible deployment (requires Docker)
+	@echo -e "$(BLUE)Running Molecule tests for Ansible deployment...$(NC)"
+	@echo -e "$(YELLOW)Note: Docker must be running and internet access is required to pull images$(NC)"
+	@if [ ! -d "$(ANSIBLE_DIR)/.venv" ]; then \
+		echo -e "$(BLUE)Creating Python virtualenv...$(NC)"; \
+		python3 -m venv $(ANSIBLE_DIR)/.venv; \
+	fi
+	@. $(ANSIBLE_DIR)/.venv/bin/activate && \
+		pip install --quiet --upgrade pip && \
+		pip install --quiet -r $(ANSIBLE_DIR)/requirements.txt && \
+		ansible-galaxy collection install -r $(ANSIBLE_DIR)/requirements.yml \
+			-p $(ANSIBLE_DIR)/.collections --force-with-deps && \
+		export ANSIBLE_VAULT_PASSWORD_FILE="$$(realpath $(ANSIBLE_DIR)/molecule/default/.vault_pass)" && \
+		export ANSIBLE_COLLECTIONS_PATH="$$(realpath $(ANSIBLE_DIR)/.collections)" && \
+		export ANSIBLE_ROLES_PATH="$$(realpath $(ANSIBLE_DIR)/roles)" && \
+		cd $(ANSIBLE_DIR) && molecule test
+
+.PHONY: ansible-lint
+ansible-lint: ## Run ansible-lint against the Ansible deployment
+	@echo -e "$(BLUE)Linting Ansible deployment...$(NC)"
+	@if [ ! -d "$(ANSIBLE_DIR)/.venv" ]; then \
+		python3 -m venv $(ANSIBLE_DIR)/.venv; \
+	fi
+	@. $(ANSIBLE_DIR)/.venv/bin/activate && \
+		pip install --quiet --upgrade pip && \
+		pip install --quiet -r $(ANSIBLE_DIR)/requirements.txt && \
+		export ANSIBLE_COLLECTIONS_PATH="$$(realpath $(ANSIBLE_DIR)/.collections)" && \
+		cd $(ANSIBLE_DIR) && ansible-lint
+
 ##@ Help
 
 .PHONY: help

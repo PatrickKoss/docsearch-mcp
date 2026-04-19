@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: common
+  author: docsearch-mcp
+  description: Base packages, sysctl, and UFW firewall
+  license: Apache-2.0
+  min_ansible_version: "2.17"

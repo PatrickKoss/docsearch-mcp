@@ -38,3 +38,10 @@ next-env.d.ts
 data/
 dist/
 .claude/
+
+# Ansible deployment
+deploy/ansible/.venv/
+deploy/ansible/.vault_pass
+deploy/ansible/*.retry
+deploy/ansible/.collections/
+deploy/ansible/molecule/default/.vault_pass

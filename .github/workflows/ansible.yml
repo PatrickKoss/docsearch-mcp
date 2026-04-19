@@ -1,0 +1,65 @@
+name: Ansible Molecule Tests
+
+on:
+  push:
+    paths:
+      - "deploy/ansible/**"
+  pull_request:
+    paths:
+      - "deploy/ansible/**"
+
+jobs:
+  molecule:
+    name: Molecule (${{ matrix.distro }}, ${{ matrix.db_engine }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - ubuntu2204
+          - debian12
+        db_engine:
+          - postgres
+          - vectorchord
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: deploy/ansible/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r deploy/ansible/requirements.txt
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install -r deploy/ansible/requirements.yml \
+            -p deploy/ansible/.collections --force-with-deps
+
+      - name: Create test vault password
+        run: echo "molecule-test-vault-password" > deploy/ansible/molecule/default/.vault_pass
+
+      - name: Run ansible-lint
+        working-directory: deploy/ansible
+        run: ansible-lint
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}/deploy/ansible/.collections
+
+      - name: Run Molecule tests
+        working-directory: deploy/ansible
+        run: molecule test --scenario-name default
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
+          MOLECULE_DISTRO: ${{ matrix.distro }}
+          MOLECULE_DB_ENGINE: ${{ matrix.db_engine }}
+          ANSIBLE_VAULT_PASSWORD_FILE: ${{ github.workspace }}/deploy/ansible/molecule/default/.vault_pass
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}/deploy/ansible/.collections
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/deploy/ansible/roles

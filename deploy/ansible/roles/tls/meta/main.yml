@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: tls
+  author: docsearch-mcp
+  description: Provision TLS certificates (self-signed or Let's Encrypt) for Postgres
+  license: Apache-2.0
+  min_ansible_version: "2.17"

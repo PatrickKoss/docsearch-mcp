@@ -1,5 +1,7 @@
 dist/
 node_modules/
+deploy/
+openspec/
 coverage/
 data/
 *.log
