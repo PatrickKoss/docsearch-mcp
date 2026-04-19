@@ -43,6 +43,7 @@ describe('Image-to-Text', () => {
     });
 
     it('should throw error when API key is missing', async () => {
+      vi.resetModules();
       vi.doMock('../src/shared/config.js', () => ({
         CONFIG: {
           OPENAI_API_KEY: '',

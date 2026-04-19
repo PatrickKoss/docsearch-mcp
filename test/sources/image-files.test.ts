@@ -13,12 +13,17 @@ vi.mock('../../src/ingest/image-to-text.js', () => ({
   getImageToTextProvider: vi.fn(),
 }));
 
-// Mock the config to point to test fixtures
+// Mutable config so individual describe blocks can override settings
+const mockConfig = {
+  FILE_ROOTS: ['./test/fixtures-images'],
+  FILE_INCLUDE_GLOBS: ['**/*.{png,jpg,jpeg,gif,svg,webp}'],
+  FILE_EXCLUDE_GLOBS: ['**/node_modules/**', '**/.git/**'],
+  DOCUMENT_PARSER: 'builtin',
+};
+
 vi.mock('../../src/shared/config.js', () => ({
-  CONFIG: {
-    FILE_ROOTS: ['./test/fixtures-images'],
-    FILE_INCLUDE_GLOBS: ['**/*.{png,jpg,jpeg,gif,svg,webp}'],
-    FILE_EXCLUDE_GLOBS: ['**/node_modules/**', '**/.git/**'],
+  get CONFIG() {
+    return mockConfig;
   },
 }));
 
@@ -34,6 +39,12 @@ describe('Image File Ingestion', () => {
   };
 
   beforeEach(async () => {
+    // Reset config to defaults
+    mockConfig.FILE_ROOTS = [fixturesDir];
+    mockConfig.FILE_INCLUDE_GLOBS = ['**/*.{png,jpg,jpeg,gif,svg,webp}'];
+    mockConfig.FILE_EXCLUDE_GLOBS = ['**/node_modules/**', '**/.git/**'];
+    mockConfig.DOCUMENT_PARSER = 'builtin';
+
     // Clean up and create test directory
     if (existsSync(fixturesDir)) {
       rmSync(fixturesDir, { recursive: true });
@@ -65,14 +76,6 @@ describe('Image File Ingestion', () => {
 
   describe('with image-to-text enabled', () => {
     beforeEach(() => {
-      vi.doMock('../../src/shared/config.js', () => ({
-        CONFIG: {
-          FILE_ROOTS: [fixturesDir],
-          FILE_INCLUDE_GLOBS: ['**/*.{png,jpg,jpeg,gif,svg,webp}'],
-          FILE_EXCLUDE_GLOBS: ['**/node_modules/**', '**/.git/**'],
-        },
-      }));
-
       // Mock image-to-text provider
       const mockProvider = {
         describeImage: vi.fn().mockImplementation((imagePath: string) => {
@@ -127,10 +130,10 @@ describe('Image File Ingestion', () => {
 
       // Check that chunks were created with AI descriptions
       const chunks = await adapter.rawQuery(`
-        SELECT c.*, d.path 
-        FROM chunks c 
-        JOIN documents d ON d.id = c.document_id 
-        WHERE d.lang = 'image' 
+        SELECT c.*, d.path
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        WHERE d.lang = 'image'
         ORDER BY d.path
       `);
       expect(chunks).toHaveLength(4);
@@ -176,14 +179,6 @@ describe('Image File Ingestion', () => {
 
   describe('with image-to-text disabled', () => {
     beforeEach(() => {
-      vi.doMock('../../src/shared/config.js', () => ({
-        CONFIG: {
-          FILE_ROOTS: [fixturesDir],
-          FILE_INCLUDE_GLOBS: ['**/*.{png,jpg,jpeg,gif,svg,webp}'],
-          FILE_EXCLUDE_GLOBS: ['**/node_modules/**', '**/.git/**'],
-        },
-      }));
-
       // Mock no provider available
       vi.mocked(getImageToTextProvider).mockReturnValue(null);
     });
@@ -199,10 +194,10 @@ describe('Image File Ingestion', () => {
 
       // Check that chunks use filename-based content
       const chunks = await adapter.rawQuery(`
-        SELECT c.*, d.path 
-        FROM chunks c 
-        JOIN documents d ON d.id = c.document_id 
-        WHERE d.lang = 'image' 
+        SELECT c.*, d.path
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        WHERE d.lang = 'image'
         ORDER BY d.path
       `);
       expect(chunks).toHaveLength(4);
@@ -232,16 +227,9 @@ describe('Image File Ingestion', () => {
   });
 
   describe('file type detection', () => {
-    beforeEach(async () => {
-      vi.resetModules();
-      vi.doMock('../../src/shared/config.js', () => ({
-        CONFIG: {
-          FILE_ROOTS: [fixturesDir],
-          FILE_INCLUDE_GLOBS: ['**/*'], // Include all files
-          FILE_EXCLUDE_GLOBS: ['**/node_modules/**'],
-        },
-      }));
-
+    beforeEach(() => {
+      mockConfig.FILE_INCLUDE_GLOBS = ['**/*']; // Include all files
+      mockConfig.FILE_EXCLUDE_GLOBS = ['**/node_modules/**'];
       vi.mocked(getImageToTextProvider).mockReturnValue(null);
     });
 
@@ -250,9 +238,7 @@ describe('Image File Ingestion', () => {
       writeFileSync(path.join(fixturesDir, 'document.txt'), 'This is a text file');
       writeFileSync(path.join(fixturesDir, 'script.js'), 'console.log("hello");');
 
-      // Re-import ingestFiles after mocking config
-      const { ingestFiles: dynamicIngestFiles } = await import('../../src/ingest/sources/files.js');
-      await dynamicIngestFiles(adapter);
+      await ingestFiles(adapter);
 
       const imageDocuments = await adapter.rawQuery("SELECT * FROM documents WHERE lang = 'image'");
       const otherDocuments = await adapter.rawQuery(
@@ -276,22 +262,16 @@ describe('Image File Ingestion', () => {
       await ingestFiles(adapter);
 
       const documents = await adapter.rawQuery(
-        "SELECT * FROM documents WHERE lang = 'image' AND (path LIKE '%.PNG' OR path LIKE '%.JPG')",
+        "SELECT * FROM documents WHERE lang = 'image' AND (path GLOB '*.PNG' OR path GLOB '*.JPG')",
       );
       expect(documents).toHaveLength(2);
     });
   });
 
   describe('chunking behavior', () => {
-    beforeEach(async () => {
-      vi.resetModules();
-      vi.doMock('../../src/shared/config.js', () => ({
-        CONFIG: {
-          FILE_ROOTS: [fixturesDir],
-          FILE_INCLUDE_GLOBS: ['**/*.png'],
-          FILE_EXCLUDE_GLOBS: [],
-        },
-      }));
+    beforeEach(() => {
+      mockConfig.FILE_INCLUDE_GLOBS = ['**/*.png'];
+      mockConfig.FILE_EXCLUDE_GLOBS = [];
     });
 
     it('should create single chunk per image', async () => {
@@ -305,9 +285,7 @@ describe('Image File Ingestion', () => {
 
       vi.mocked(getImageToTextProvider).mockReturnValue(mockProvider);
 
-      // Re-import ingestFiles after mocking config
-      const { ingestFiles: dynamicIngestFiles } = await import('../../src/ingest/sources/files.js');
-      await dynamicIngestFiles(adapter);
+      await ingestFiles(adapter);
 
       // Should only have one PNG file
       const documents = await adapter.rawQuery("SELECT * FROM documents WHERE lang = 'image'");
